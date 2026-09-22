@@ -26,7 +26,7 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 internal fun VillageMapScreen(onFarm: () -> Unit, onShop: () -> Unit, onMarket: () -> Unit,
-    onOrders: () -> Unit, onUpgrades: () -> Unit) {
+    onOrders: () -> Unit, onUpgrades: () -> Unit, onDecorations: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize().testTag("village_screen").background(GardenColors.Cream).verticalScroll(rememberScrollState())) {
         // Fixed image ratio keeps each hit region anchored to its actual building on every width.
         BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(286f / 512f)) {
@@ -59,6 +59,10 @@ internal fun VillageMapScreen(onFarm: () -> Unit, onShop: () -> Unit, onMarket: 
             place("village_upgrades", "ร้านช่างไม้", FarmSymbol.HAMMER, .68f, .465f, .30f, .19f, action = onUpgrades)
             place("village_farm", "กลับฟาร์ม", FarmSymbol.FARM, .035f, .57f, .35f, .19f, action = onFarm)
             GardenCat(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 24.dp).size(60.dp, 45.dp))
+        }
+        onDecorations?.let { openDecorations ->
+            GardenButton("ร้านของแต่งสวน · บ้านในแบบเรา", Modifier.fillMaxWidth().padding(horizontal = 18.dp).testTag("village_decorations"),
+                symbol = FarmSymbol.HAMMER, secondary = true, onClick = openDecorations)
         }
         GardenButton("กลับสวนของเรา", Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), symbol = FarmSymbol.FARM, onClick = onFarm)
     }

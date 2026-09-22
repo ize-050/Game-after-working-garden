@@ -109,13 +109,14 @@ fun main() = runBlocking {
         click(tag = "nav_ORDERS")
         click(text = "ส่งผักให้คุณยาย")
         check(store.state.orderClaimed)
-        check(store.state.coins == 173 && store.state.xp == 20)
+        check(store.state.coins == 173 && store.state.xp == 20 + 3 * CropType.LETTUCE.harvestXp)
+        check(store.state.completedOrders == 1)
         check(store.state.produceCount(CropType.LETTUCE) == 0)
         click(tag = "account_status")
         assertTag("account_screen")
         assertDisabled("account_google")
         assertDisabled("account_apple")
-        check(store.state.coins == 173 && store.state.xp == 20)
+        check(store.state.coins == 173 && store.state.xp == 20 + 3 * CropType.LETTUCE.harvestXp)
         println("UI SMOKE PASSED: navigation, till, plant, water, real game clock, harvest, sale, purchase, order, serialized saves, Guest account routes and unavailable real sign-in")
     } finally {
         scene.close()
@@ -123,4 +124,5 @@ fun main() = runBlocking {
     accountUiSmoke(coroutineContext)
     runMvpUiSmoke()
     runDesignParitySmoke()
+    runProgressionUiSmoke()
 }

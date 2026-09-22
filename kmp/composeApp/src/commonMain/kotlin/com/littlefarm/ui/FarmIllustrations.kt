@@ -303,6 +303,43 @@ internal fun DrawScope.drawCrop(crop: CropType, sprout: Boolean) {
             drawOval(Color(0xFFF7B94F), Offset(36f, 36f), Size(26f, 44f))
             drawOval(Color(0xFFFFD278).copy(alpha = .7f), Offset(39f, 40f), Size(10f, 23f))
         }
+        CropType.TOMATO -> {
+            drawOval(Color(0xFFBE5943), Offset(18f, 35f), Size(68f, 53f))
+            drawOval(Color(0xFFE7835C), Offset(20f, 34f), Size(59f, 48f))
+            drawOval(Color(0xFFEF9C74), Offset(28f, 39f), Size(22f, 12f))
+            drawPath(polygon(50f, 40f, 26f, 36f, 40f, 29f, 43f, 17f, 53f, 27f, 67f, 24f, 62f, 35f, 77f, 41f, 57f, 44f), LeafDark)
+            drawPath(Path().apply { moveTo(50f, 35f); quadraticTo(47f, 23f, 56f, 17f) }, LeafMid, style = Stroke(5f, cap = StrokeCap.Round))
+            drawLine(Color(0xFFFFC7A0), Offset(29f, 53f), Offset(27f, 61f), 4f, StrokeCap.Round)
+        }
+        CropType.STRAWBERRY -> {
+            val berry = Path().apply {
+                moveTo(24f, 43f); cubicTo(30f, 27f, 43f, 31f, 50f, 37f)
+                cubicTo(65f, 28f, 80f, 34f, 79f, 48f)
+                cubicTo(76f, 65f, 63f, 84f, 50f, 90f)
+                cubicTo(34f, 79f, 18f, 57f, 24f, 43f); close()
+            }
+            drawPath(berry, Color(0xFFC96866))
+            translate(left = -2f, top = -3f) { scale(.92f, .94f, Offset(50f, 55f)) { drawPath(berry, Color(0xFFE6867C)) } }
+            drawPath(polygon(50f, 40f, 27f, 34f, 41f, 28f, 42f, 17f, 53f, 28f, 68f, 19f, 66f, 34f, 78f, 39f, 59f, 45f), LeafMid)
+            listOf(Offset(34f, 48f), Offset(49f, 51f), Offset(65f, 48f), Offset(39f, 62f), Offset(58f, 65f), Offset(49f, 77f)).forEach {
+                drawOval(Color(0xFFFFD8AA), it, Size(3f, 5f))
+            }
+        }
+        CropType.FLOWER -> {
+            drawLine(LeafDark, Offset(51f, 80f), Offset(51f, 42f), 5f, StrokeCap.Round)
+            drawLeaf(49f, 75f, 15f, 29f, -48f, LeafMid)
+            drawLeaf(53f, 68f, 16f, 29f, 46f, LeafLight)
+            repeat(7) { index ->
+                rotate(index * 360f / 7f, Offset(51f, 39f)) {
+                    drawOval(Color(0xFFE7B660), Offset(40f, 7f), Size(22f, 33f))
+                    drawOval(Color(0xFFFFDA89), Offset(43f, 9f), Size(16f, 26f))
+                }
+            }
+            drawCircle(Color(0xFF996742), 13f, Offset(51f, 39f))
+            drawCircle(Color(0xFFC29457), 9f, Offset(51f, 37f))
+            drawCircle(Color(0xFFF4D493), 2f, Offset(48f, 34f))
+            drawCircle(Color(0xFFF4D493), 2f, Offset(55f, 39f))
+        }
     }
 }
 

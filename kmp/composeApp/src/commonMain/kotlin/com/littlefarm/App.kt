@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.littlefarm.account.*
 import com.littlefarm.game.*
 import com.littlefarm.feedback.*
+import com.littlefarm.notifications.*
 import com.littlefarm.platform.SaveStore
 import com.littlefarm.platform.currentTimeMillis
 import com.littlefarm.resources.Res
@@ -55,16 +56,21 @@ import org.jetbrains.compose.resources.painterResource
 private enum class Page(val title: String) {
     WELCOME("สวนหลังเลิกงาน"), FARM("สวนของเรา"), BAG("กระเป๋าชาวสวน"),
     SHOP("ร้านเมล็ดป้าพร"), MARKET("ตลาดผักสด"), ORDERS("งานเพื่อนบ้าน"),
-    UPGRADES("ร้านช่างไม้"), VILLAGE("หมู่บ้านของเรา"), SETTINGS("ดูแลสวนของเรา"), ACCOUNT("บัญชีและสวนของเรา")
+    UPGRADES("ร้านช่างไม้"), VILLAGE("หมู่บ้านของเรา"), SETTINGS("ดูแลสวนของเรา"), ACCOUNT("บัญชีและสวนของเรา"),
+    DECORATIONS("แต่งสวนของเรา"), COLLECTION("สมุดสะสมพืช"), CAT("เพื่อนตัวน้อย")
 }
 
 /** Optional presentation-only entry points let QA inspect the real UI without altering saves. */
 @Composable
 fun App(saveStore: SaveStore, initialPage: String = "WELCOME", initialPlotIndex: Int? = null, previewHarvest: CropType? = null,
-    session: GardenSession? = null, feedback: GameFeedbackController? = null) {
+    session: GardenSession? = null, feedback: GameFeedbackController? = null, reminders: HarvestReminderController? = null) {
     val gardenSession = remember(saveStore, session) { session ?: GardenSession(saveStore, MemoryAccountStore(), UnavailableAccountPlatform()) }
     val feedbackController = remember(feedback) { feedback ?: GameFeedbackController(MemoryAccountStore(), SilentFarmAudio()) }
     val feedbackState by feedbackController.snapshot.collectAsState()
+    val reminderController = remember(reminders) {
+        reminders ?: HarvestReminderController(MemoryAccountStore(), UnavailableHarvestNotificationPlatform())
+    }
+    val reminderState by reminderController.snapshot.collectAsState()
     val snapshot by gardenSession.snapshot.collectAsState()
     val state = snapshot.game
     val loadWarning = snapshot.loadWarning
@@ -145,6 +151,13 @@ fun App(saveStore: SaveStore, initialPage: String = "WELCOME", initialPlotIndex:
     LaunchedEffect(gardenSession) { gardenSession.restoreAccount() }
     DisposableEffect(gardenSession) { onDispose { pendingSync?.cancel() } }
     DisposableEffect(feedbackController) { onDispose { if (feedback == null) feedbackController.close() } }
+    DisposableEffect(reminderController) { onDispose { if (reminders == null) reminderController.close() } }
+    LaunchedEffect(snapshot.account?.uid, snapshot.game, snapshot.conflict, snapshot.deletionPending,
+        snapshot.loadWarning, snapshot.saveFailed, snapshot.busy) {
+        reminderController.updateGarden(snapshot.account?.uid ?: "guest", snapshot.game,
+            blocked = snapshot.conflict != null || snapshot.deletionPending || snapshot.loadWarning || snapshot.saveFailed || snapshot.busy)
+    }
+    LaunchedEffect(page) { if (page == Page.SETTINGS) reminderController.refreshPermission() }
     LaunchedEffect(snapshot.account?.uid) {
         if (previousOwner != snapshot.account?.uid) {
             selectedPlot = null; plantingTarget = null; harvest = null; motionEvent = null; navigationHistory = emptyList()
@@ -210,12 +223,22 @@ fun App(saveStore: SaveStore, initialPage: String = "WELCOME", initialPlotIndex:
                                 Page.MARKET -> ProduceMarketScreen(state,
                                     onSell = { crop, quantity -> perform("coins") { GameEngine.sellProduce(it, crop, quantity) } },
                                     onFarm = { navigate(Page.FARM) })
-                                Page.ORDERS -> VillageOrdersScreen(state, onDeliver = { perform("order") { GameEngine.fulfillOrder(it) } },
+                                Page.ORDERS -> VillageOrdersScreen(state, onDeliver = { perform("order") { GameEngine.fulfillOrder(it, state.completedOrders) } },
                                     onFarm = { navigate(Page.FARM) }, onShop = { navigate(Page.SHOP) })
                                 Page.UPGRADES -> UpgradeShopScreen(state, onBuy = { upgrade -> perform("upgrade") { GameEngine.buyUpgrade(it, upgrade) } }, onMarket = { navigate(Page.MARKET) })
+                                Page.DECORATIONS -> DecorationShopScreen(state,
+                                    onBuy = { decoration -> perform("coins") { GameEngine.buyDecoration(it, decoration) } },
+                                    onEquip = { decoration -> perform("upgrade") { GameEngine.equipDecoration(it, decoration) } },
+                                    onUnequip = { slot -> perform("upgrade") { GameEngine.unequipDecoration(it, slot) } })
+                                Page.COLLECTION -> CollectionScreen(state)
+                                Page.CAT -> CatScreen(state, now,
+                                    onRename = { name -> perform("plant") { GameEngine.renameCat(it, name) } },
+                                    onPet = { perform("plant") { GameEngine.petCat(it, currentTimeMillis()) } })
                                 Page.VILLAGE -> VillageMapScreen(onFarm = { navigate(Page.FARM) }, onShop = { navigate(Page.SHOP) },
-                                    onMarket = { navigate(Page.MARKET) }, onOrders = { navigate(Page.ORDERS) }, onUpgrades = { navigate(Page.UPGRADES) })
-                                Page.SETTINGS -> SettingsScreen(state, snapshot, feedbackState, onPreferences = feedbackController::update, onSave = {
+                                    onMarket = { navigate(Page.MARKET) }, onOrders = { navigate(Page.ORDERS) }, onUpgrades = { navigate(Page.UPGRADES) },
+                                    onDecorations = { navigate(Page.DECORATIONS) })
+                                Page.SETTINGS -> SettingsScreen(state, snapshot, feedbackState, reminderState,
+                                    onReminders = reminderController::setEnabled, onPreferences = feedbackController::update, onSave = {
                                     notice = if (persist(gardenSession.snapshot.value.game)) "บันทึกสวนในเครื่องแล้ว" else "ยังบันทึกสวนไม่ได้ ลองตรวจสถานะบัญชี"
                                 }, onReset = { if (!snapshot.busy && snapshot.conflict == null && !snapshot.deletionPending) confirmReset = true },
                                     onDemoTime = { perform("", "demo") { GameEngine.advanceDemoTime(it) } }, navigate = ::navigate)
@@ -309,7 +332,8 @@ private fun BottomGardenNav(page: Page, onNavigate: (Page) -> Unit) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             listOf(Triple(Page.FARM, "สวน", FarmSymbol.FARM), Triple(Page.BAG, "กระเป๋า", FarmSymbol.BAG),
                 Triple(Page.VILLAGE, "หมู่บ้าน", FarmSymbol.VILLAGE), Triple(Page.ORDERS, "งาน", FarmSymbol.ORDERS)).forEach { (target, title, icon) ->
-                val active = page == target || (target == Page.VILLAGE && page in listOf(Page.SHOP, Page.MARKET, Page.UPGRADES))
+                val active = page == target || (target == Page.VILLAGE && page in listOf(Page.SHOP, Page.MARKET, Page.UPGRADES, Page.DECORATIONS)) ||
+                    (target == Page.BAG && page == Page.COLLECTION) || (target == Page.FARM && page == Page.CAT)
                 Column(Modifier.weight(1f).testTag("nav_${target.name}").clip(RoundedCornerShape(19.dp))
                     .background(if (active) C.LeafLight else Color.Transparent)
                     .clickable(role = Role.Tab, onClick = { onNavigate(target) }).padding(vertical = 6.dp),
@@ -332,9 +356,15 @@ private fun FarmScreen(state: GameState, now: Long, onPlot: (Int) -> Unit, navig
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Badge("สวนเรา · ${state.plots.size} แปลง", background = C.Paper.copy(alpha = .92f))
                 Spacer(Modifier.weight(1f))
-                if (!compact) GardenCat(Modifier.size(45.dp, 39.dp))
+                if (!compact) Box(Modifier.testTag("farm_cat_portrait").clickable(role = Role.Button) { navigate(Page.CAT) }
+                    .semantics { contentDescription = "ทักทาย${state.cat.name}" }) {
+                    GardenCat(Modifier.size(45.dp, 39.dp), bond = state.cat.bond)
+                }
                 val ready = state.plots.count { it.isReady(now) }
                 if (ready > 0) Badge("พร้อมเก็บ $ready", symbol = FarmSymbol.CHECK, background = C.Butter)
+            }
+            if (state.equippedDecor.isNotEmpty()) {
+                GardenDecorScene(state, Modifier.fillMaxWidth().height(110.dp).padding(vertical = 4.dp))
             }
             Spacer(Modifier.height(4.dp))
             state.plots.chunked(3).forEachIndexed { row, plots ->
@@ -371,6 +401,16 @@ private fun FarmScreen(state: GameState, now: Long, onPlot: (Int) -> Unit, navig
                 Surface(onClick = { navigate(Page.MARKET) }, modifier = Modifier.weight(1f).testTag("farm_market"),
                     shape = RoundedCornerShape(14.dp), color = C.Paper.copy(alpha = .96f)) {
                     GardenText("ขายผัก", Modifier.padding(vertical = 12.dp), size = 13, bold = true, color = C.Leaf, align = TextAlign.Center)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(Triple(Page.DECORATIONS, "แต่งสวน", "farm_decorations"),
+                    Triple(Page.COLLECTION, "สมุดพืช", "farm_collection"),
+                    Triple(Page.CAT, "ทักทายแมว", "farm_cat")).forEach { (target, label, tag) ->
+                    Surface(onClick = { navigate(target) }, modifier = Modifier.weight(1f).testTag(tag),
+                        shape = RoundedCornerShape(14.dp), color = C.Butter.copy(alpha = .97f)) {
+                        GardenText(label, Modifier.padding(vertical = 12.dp), size = 13, bold = true, color = C.LeafDark, align = TextAlign.Center)
+                    }
                 }
             }
             Surface(onClick = { navigate(Page.UPGRADES) }, modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp).testTag("farm_upgrades"),
@@ -434,6 +474,9 @@ private fun BagScreen(state: GameState, navigate: (Page) -> Unit) {
     val basketEmpty = !showSeeds && state.produce.values.all { it == 0 }
     ScrollPage {
         WoodenTitle("กระเป๋าชาวสวน", "สิ่งเล็ก ๆ ที่เก็บมาจากสวน", Modifier.align(Alignment.CenterHorizontally))
+        GardenButton("เปิดสมุดสะสมพืช", Modifier.fillMaxWidth().testTag("bag_collection"), secondary = true, symbol = FarmSymbol.LEAF) {
+            navigate(Page.COLLECTION)
+        }
         Row(Modifier.fillMaxWidth().background(Color(0xFFE8DDBF), RoundedCornerShape(18.dp)).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(false to "ผลผลิต  ${state.produce.values.sum()}", true to "เมล็ดพันธุ์  ${state.seeds.values.sum()}").forEach { (seeds, label) ->
                 Surface(onClick = { showSeeds = seeds }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp),
@@ -462,7 +505,7 @@ private fun BagScreen(state: GameState, navigate: (Page) -> Unit) {
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 FarmIcon(FarmSymbol.COIN, Modifier.size(19.dp))
-                                GardenText("${crop.sellPrice} / หัว", size = 12, color = C.Muted)
+                                GardenText("${crop.sellPrice} / ${crop.produceUnit}", size = 12, color = C.Muted)
                             }
                         }
                     }
@@ -477,10 +520,20 @@ private fun BagScreen(state: GameState, navigate: (Page) -> Unit) {
 }
 
 @Composable
-private fun SettingsScreen(state: GameState, snapshot: SessionSnapshot, feedback: FeedbackState, onPreferences: (GamePreferences) -> Boolean,
+private fun SettingsScreen(state: GameState, snapshot: SessionSnapshot, feedback: FeedbackState, reminders: HarvestReminderState,
+    onReminders: (Boolean) -> Unit, onPreferences: (GamePreferences) -> Boolean,
     onSave: () -> Unit, onReset: () -> Unit, onDemoTime: () -> Unit, navigate: (Page) -> Unit) {
     ScrollPage {
         WoodenTitle("ดูแลสวนของเรา", "เก็บความสุขไว้ แล้วค่อยกลับมา", Modifier.align(Alignment.CenterHorizontally))
+        PaperCard {
+            SectionLabel("กลับมาเมื่อพร้อม", "เตือนรวม ไม่เร่งให้เล่น")
+            PreferenceToggle("เตือนเมื่อผักพร้อมเก็บ", "ขออนุญาตเฉพาะตอนเปิด และปิดได้ทุกเมื่อ", "setting_harvest_reminders",
+                reminders.enabled, enabled = !reminders.busy, onChange = onReminders)
+            GardenText("แจ้งครั้งเดียวเมื่อผักที่กำลังโตรอบนี้พร้อมทั้งหมด ไม่แยกเตือนทีละแปลง และผักไม่เหี่ยวแม้ยังไม่กลับมา",
+                size = 13, color = C.Muted)
+            if (reminders.scheduledCount > 0) Badge("รอแจ้งรวม ${reminders.scheduledCount} แปลง", symbol = FarmSymbol.CLOCK)
+            reminders.message?.let { GardenText(it, Modifier.testTag("reminder_status"), size = 13, color = C.LeafDark) }
+        }
         PaperCard {
             SectionLabel("เสียงและการเคลื่อนไหว", "จังหวะที่เธอชอบ")
             PreferenceToggle("ดนตรีในสวน", "ทำนองเบา ๆ หยุดเมื่อออกจากแอป", "setting_music", feedback.preferences.musicEnabled) {
@@ -524,19 +577,19 @@ private fun SettingsScreen(state: GameState, snapshot: SessionSnapshot, feedback
         Surface(onClick = onReset, color = Color.Transparent, border = BorderStroke(1.dp, C.Terra), shape = RoundedCornerShape(18.dp)) {
             GardenText("เริ่มสวนใหม่ทั้งหมด", Modifier.fillMaxWidth().padding(14.dp), size = 13, color = Color(0xFFA45639), bold = true, align = TextAlign.Center)
         }
-        GardenText("v0.1.0 · KMP / Compose Multiplatform\nทำนองและเสียงสังเคราะห์ต้นฉบับ · ยังไม่มีระบบฤดูกาล", Modifier.fillMaxWidth(), size = 13, color = C.Muted, align = TextAlign.Center)
+        GardenText("v0.2.0 · KMP / Compose Multiplatform\nสวนเติบโตไปพร้อมเรา · เล่นออฟไลน์ได้", Modifier.fillMaxWidth(), size = 13, color = C.Muted, align = TextAlign.Center)
     }
 }
 
 @Composable
-private fun PreferenceToggle(title: String, description: String, tag: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun PreferenceToggle(title: String, description: String, tag: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(Modifier.weight(1f)) {
             GardenText(title, size = 16, bold = true)
             GardenText(description, size = 13, color = C.Muted)
         }
-        Switch(checked = checked, onCheckedChange = onChange,
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled,
             modifier = Modifier.sizeIn(minWidth = 52.dp, minHeight = 48.dp).testTag(tag).semantics { contentDescription = title })
     }
 }
@@ -552,13 +605,14 @@ private fun PlotOverlay(index: Int, plot: Plot, state: GameState, now: Long, onD
                 CropType.entries.chunked(2).forEach { crops ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         crops.forEach { crop ->
-                            val enabled = state.seedCount(crop) > 0
+                            val enabled = state.seedCount(crop) > 0 && state.isUnlocked(crop)
                             Surface(onClick = { onPlant(crop) }, enabled = enabled, modifier = Modifier.weight(1f).testTag("seed_${crop.name}"), color = crop.cardTint(),
                                 border = BorderStroke(1.dp, if (enabled) C.Line else Color(0xFFE3DFCE)), shape = RoundedCornerShape(18.dp)) {
                                 Column(Modifier.padding(11.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     CropArt(crop, Modifier.size(62.dp))
                                     GardenText(crop.thaiName, size = 14, bold = true, color = if (enabled) C.Ink else C.Muted)
-                                    GardenText("${crop.minutes()} นาที · มี ${state.seedCount(crop)}", size = 10, color = C.Muted)
+                                    GardenText(if (state.isUnlocked(crop)) "${crop.minutes()} นาที · มี ${state.seedCount(crop)}"
+                                        else "ปลดล็อกเลเวล ${crop.unlockLevel}", size = 13, color = C.Muted)
                                     GardenText("ขายได้ ${crop.sellPrice} เหรียญ", Modifier.testTag("seed_sale_${crop.name}"), size = 13, color = C.Leaf)
                                 }
                             }
@@ -612,8 +666,9 @@ private fun HarvestOverlay(crop: CropType, count: Int, onDismiss: () -> Unit, on
                 HarvestCelebration(crop, Modifier.size(136.dp, 124.dp))
             }
             Badge("+1 ${crop.thaiName}", symbol = FarmSymbol.CHECK, background = C.Butter, color = C.LeafDark)
+            Badge("+${crop.harvestXp} XP · บันทึกลงสมุดพืชแล้ว", symbol = FarmSymbol.STAR, background = C.LeafLight)
             GardenText("ความภูมิใจจากสวนเรา", size = 21, bold = true, color = C.LeafDark, align = TextAlign.Center)
-            GardenText("ในกระเป๋ามี${crop.thaiName} $count หัว\nขายได้หัวละ ${crop.sellPrice} เหรียญ หรือเก็บไว้ส่งงาน", size = 13, color = C.Muted, align = TextAlign.Center)
+            GardenText("ในกระเป๋ามี${crop.thaiName} $count ${crop.produceUnit}\nขายได้${crop.produceUnit}ละ ${crop.sellPrice} เหรียญ หรือเก็บไว้ส่งงาน", size = 13, color = C.Muted, align = TextAlign.Center)
             GardenButton("นำผักไปขาย", Modifier.fillMaxWidth(), symbol = FarmSymbol.MARKET, onClick = onMarket)
             GardenButton("กลับไปปลูกต่อ", Modifier.fillMaxWidth(), secondary = true, symbol = FarmSymbol.LEAF, onClick = onDismiss)
         }
@@ -624,6 +679,8 @@ private fun CropType.minutes(): Long = growthDurationMillis / 60_000
 private fun CropType.cardTint(): Color = when (this) {
     CropType.LETTUCE -> Color(0xFFE7EDD0); CropType.RADISH -> Color(0xFFF2E2DD)
     CropType.CARROT -> Color(0xFFF6E4CC); CropType.PUMPKIN -> Color(0xFFF6E5BB)
+    CropType.TOMATO -> Color(0xFFF8DDD1); CropType.STRAWBERRY -> Color(0xFFF7DFE4)
+    CropType.FLOWER -> Color(0xFFEEE1F3)
 }
 private fun Plot.label(now: Long): String = when (stage) {
     PlotStage.UNTILLED -> "พรวนดินกัน"
@@ -640,7 +697,14 @@ private fun errorText(error: GameError): String = when (error) {
     GameError.CROP_NOT_READY -> "ผักยังโตไม่เต็มที่ พักแล้วค่อยกลับมาได้"
     GameError.NOT_ENOUGH_PRODUCE -> "ผลผลิตยังไม่ครบ ลองกลับไปเก็บผักก่อน"
     GameError.ORDER_ALREADY_CLAIMED -> "งานนี้ส่งเรียบร้อยแล้ว"
+    GameError.ORDER_CHANGED -> "ส่งงานแล้ว ลองดูคำขอใหม่ก่อนส่งอีกครั้งนะ"
     GameError.UPGRADE_ALREADY_OWNED -> "มีอัปเกรดนี้แล้ว"
     GameError.NOTHING_TO_WATER -> "ทุกแปลงที่ปลูกมีน้ำแล้ว"
+    GameError.CROP_LOCKED -> "เก็บเกี่ยวและส่งงานเพื่อเพิ่มเลเวล แล้วปลดล็อกพืชนี้นะ"
+    GameError.DECORATION_ALREADY_OWNED -> "มีของแต่งชิ้นนี้แล้ว เลือกวางในสวนได้เลย"
+    GameError.DECORATION_NOT_OWNED -> "ต้องซื้อหรือปลดล็อกของแต่งชิ้นนี้ก่อนนะ"
+    GameError.DECORATION_REWARD_ONLY -> "ของแต่งนี้เป็นรางวัลจากสมุดสะสมพืช"
+    GameError.INVALID_CAT_NAME -> "ตั้งชื่อแมว 1–${CatState.MAX_NAME_LENGTH} ตัวอักษร โดยไม่ขึ้นบรรทัดใหม่"
+    GameError.CAT_NEEDS_REST -> "เพิ่งลูบหัวไป ให้เพื่อนตัวน้อยพักสักนาทีนะ ความสนิทไม่ลดลง"
     else -> "ทำรายการนี้ไม่ได้ในตอนนี้ กลับมาดูสถานะแปลงอีกครั้งนะ"
 }

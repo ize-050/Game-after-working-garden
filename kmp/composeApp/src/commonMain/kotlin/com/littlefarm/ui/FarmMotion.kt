@@ -95,9 +95,9 @@ internal fun DrawScope.drawPlotAction(kind: String?, progress: Float) {
     }
 }
 
-/** Original small orange garden companion. No taps, timers, or rewards are attached. */
+/** Original orange companion; friendship unlocks contented and rolling poses. */
 @Composable
-internal fun GardenCat(modifier: Modifier = Modifier) {
+internal fun GardenCat(modifier: Modifier = Modifier, bond: Int = 0) {
     val reducedMotion = LocalReducedMotion.current
     val phase = if (reducedMotion) 0f else {
         val idle = rememberInfiniteTransition(label = "garden-cat-idle")
@@ -106,7 +106,10 @@ internal fun GardenCat(modifier: Modifier = Modifier) {
         value
     }
     Canvas(modifier.size(88.dp, 66.dp)) {
-        withTransform({ scale(size.width / 120f, size.height / 90f, Offset.Zero) }) {
+        withTransform({
+            scale(size.width / 120f, size.height / 90f, Offset.Zero)
+            if (bond >= 15) rotate(-18f, Offset(60f, 55f))
+        }) {
             val orange = Color(0xFFD9914B)
             val light = Color(0xFFF2BD76)
             val ink = Color(0xFF71503B)
@@ -130,7 +133,7 @@ internal fun GardenCat(modifier: Modifier = Modifier) {
             repeat(3) { index ->
                 drawLine(ink.copy(alpha = .4f), Offset(43f + index * 7f, 29f), Offset(44f + index * 6f, 34f), 2.5f, StrokeCap.Round)
             }
-            val blinking = !reducedMotion && phase > .79f && phase < .83f
+            val blinking = bond >= 5 || (!reducedMotion && phase > .79f && phase < .83f)
             if (blinking) {
                 drawLine(ink, Offset(34f, 44f), Offset(42f, 44f), 2.4f, StrokeCap.Round)
                 drawLine(ink, Offset(57f, 44f), Offset(65f, 44f), 2.4f, StrokeCap.Round)
@@ -145,6 +148,18 @@ internal fun GardenCat(modifier: Modifier = Modifier) {
             drawLine(ink.copy(alpha = .6f), Offset(65f, 50f), Offset(77f, 48f), 1f, StrokeCap.Round)
             drawLine(ink.copy(alpha = .6f), Offset(22f, 54f), Offset(34f, 54f), 1f, StrokeCap.Round)
             drawLine(ink.copy(alpha = .6f), Offset(65f, 54f), Offset(78f, 54f), 1f, StrokeCap.Round)
+            if (bond >= 15) {
+                drawOval(light, Offset(70f, 42f), Size(12f, 19f))
+                drawOval(light, Offset(81f, 47f), Size(10f, 18f))
+                drawOval(Color(0xFFE6A194), Offset(73f, 43f), Size(6f, 7f))
+                drawOval(Color(0xFFE6A194), Offset(83f, 48f), Size(5f, 6f))
+            }
+            if (bond >= 5) {
+                drawPath(Path().apply {
+                    moveTo(84f, 24f); cubicTo(75f, 18f, 78f, 11f, 84f, 15f)
+                    cubicTo(90f, 9f, 95f, 17f, 84f, 24f); close()
+                }, Color(0xFFD99887))
+            }
         }
     }
 }

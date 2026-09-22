@@ -1,5 +1,9 @@
 # Setup verification — 22 September 2026
 
+## หลังเพิ่มระบบ v0.2
+
+ระบบใหม่และวิธีตรวจอยู่ใน [PROGRESSION-UPDATE.md](PROGRESSION-UPDATE.md) พื้นที่เครื่องรอบนี้ประมาณ 3.9–4.0 GiB ต่ำกว่า native-build guard 5 GiB จึงไม่ rebuild/reinstall Simulator binary ไม่ดาวน์โหลด SDK และไม่ลบข้อมูลเพื่อฝืน build แอปที่ติดตั้งบน Simulator ยังเป็นรุ่นก่อนส่วนขยายนี้ Android SDK ยังไม่พร้อม การ parse Swift / lint Xcode project ไม่ใช่ full native compile หรือการยืนยันส่ง local notification จริง
+
 ## ลองเปิด iOS Simulator — หลังผู้ใช้คืนพื้นที่
 
 - เริ่มรอบนี้ว่างประมาณ 18 GiB; ติดตั้ง iOS 26.3.1 arm64 (23D8133) ด้วย `xcodebuild -downloadPlatform iOS -architectureVariant arm64` สำเร็จ ดาวน์โหลด 8.39 GB จาก Apple

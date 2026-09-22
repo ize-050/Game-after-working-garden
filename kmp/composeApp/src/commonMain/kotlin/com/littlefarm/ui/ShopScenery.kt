@@ -93,7 +93,7 @@ internal fun ProduceMarketScenery(totalProduce: Long) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             FarmIcon(FarmSymbol.BAG, Modifier.size(40.dp))
             Column(Modifier.weight(1f)) {
-                GardenText("ตะกร้าของเธอ · $totalProduce หัว", size = 17, bold = true)
+                GardenText("ตะกร้าของเธอ · $totalProduce ชิ้น", size = 17, bold = true)
                 GardenText("จะขายหรือเก็บส่งงานก็ได้นะ", size = 13, color = GardenColors.Muted)
             }
         }
@@ -120,7 +120,7 @@ internal fun MarketReceipt(crop: CropType, quantity: Int, earnedCoins: Long, cur
         .border(1.dp, Color(0xFFB8CD94), RoundedCornerShape(16.dp)).padding(13.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         GardenText("ขายเรียบร้อย ขอบใจนะ!", size = 17, bold = true, color = GardenColors.LeafDark)
-        GardenText("${crop.thaiName} $quantity หัว · รับ $earnedCoins เหรียญ", Modifier.testTag("sale_receipt_detail"), size = 14)
+        GardenText("${crop.thaiName} $quantity ${crop.produceUnit} · รับ $earnedCoins เหรียญ", Modifier.testTag("sale_receipt_detail"), size = 14)
         GardenText("เหรียญตอนนี้ $currentCoins", Modifier.testTag("sale_receipt_balance"), size = 15, bold = true, color = GardenColors.Leaf)
     }
 }

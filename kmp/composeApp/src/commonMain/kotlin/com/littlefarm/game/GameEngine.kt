@@ -14,6 +14,7 @@ object GameEngine {
     fun plant(state: GameState, plotIndex: Int, crop: CropType): GameResult {
         val plot = state.plots.getOrNull(plotIndex) ?: return fail(GameError.INVALID_PLOT)
         if (plot.stage != PlotStage.TILLED) return fail(GameError.WRONG_PLOT_STAGE)
+        if (!state.isUnlocked(crop)) return fail(GameError.CROP_LOCKED)
         if (state.seedCount(crop) < 1) return fail(GameError.NO_SEEDS)
         val planted = state.withPlot(plotIndex, Plot(stage = PlotStage.PLANTED, crop = crop))
         return success(
@@ -39,16 +40,32 @@ object GameEngine {
         val plot = state.plots.getOrNull(plotIndex) ?: return fail(GameError.INVALID_PLOT)
         if (!plot.isReady(state.effectiveNowMillis(nowMillis))) return fail(GameError.CROP_NOT_READY)
         val crop = plot.crop ?: return fail(GameError.WRONG_PLOT_STAGE)
-        if (state.produceCount(crop) == Int.MAX_VALUE) return fail(GameError.VALUE_OUT_OF_RANGE)
+        if (state.produceCount(crop) == Int.MAX_VALUE || state.harvestCount(crop) == Int.MAX_VALUE ||
+            state.xp > Int.MAX_VALUE - crop.harvestXp) return fail(GameError.VALUE_OUT_OF_RANGE)
+        val count = state.harvestCount(crop) + 1
+        val newBadges = CollectionBadge.forCrop(crop).filter { it.threshold == count }
+        val newLevel = 1 + (state.xp + crop.harvestXp) / 100
+        val unlocked = CropType.entries.filter { it.unlockLevel > state.level && it.unlockLevel <= newLevel }
         val harvested = state.withPlot(plotIndex, Plot(stage = PlotStage.TILLED))
         return success(
-            harvested.copy(produce = state.produce + (crop to state.produceCount(crop) + 1)),
-            "เก็บ${crop.thaiName} 1 หัวเข้ากระเป๋าแล้ว",
+            harvested.copy(
+                produce = state.produce + (crop to state.produceCount(crop) + 1),
+                xp = state.xp + crop.harvestXp,
+                harvestCounts = state.harvestCounts + (crop to count),
+                ownedDecor = state.ownedDecor + newBadges.map { it.reward },
+            ),
+            buildString {
+                append("เก็บ${crop.thaiName} 1 ต้น +${crop.harvestXp} XP")
+                if (newBadges.isNotEmpty()) append(" · ได้ตรา${newBadges.first().thaiName}และของแต่งสวน")
+                if (newLevel > state.level) append(" · เลเวล $newLevel!")
+                if (unlocked.isNotEmpty()) append(" ปลดล็อก${unlocked.joinToString { it.thaiName }}")
+            },
         )
     }
 
     fun buySeeds(state: GameState, crop: CropType, quantity: Int = 1): GameResult {
         if (quantity <= 0) return fail(GameError.INVALID_QUANTITY)
+        if (!state.isUnlocked(crop)) return fail(GameError.CROP_LOCKED)
         val cost = crop.seedPrice.toLong() * quantity
         if (cost > state.coins) return fail(GameError.NOT_ENOUGH_COINS)
         val count = state.seedCount(crop).toLong() + quantity
@@ -77,20 +94,71 @@ object GameEngine {
         )
     }
 
-    fun fulfillOrder(state: GameState): GameResult {
-        if (state.orderClaimed) return fail(GameError.ORDER_ALREADY_CLAIMED)
-        if (state.produceCount(CropType.LETTUCE) < 2) return fail(GameError.NOT_ENOUGH_PRODUCE)
-        if (state.coins > Int.MAX_VALUE - 45 || state.xp > Int.MAX_VALUE - 20) {
+    fun fulfillOrder(state: GameState, expectedCompletedOrders: Int = state.completedOrders): GameResult {
+        if (expectedCompletedOrders != state.completedOrders) return fail(GameError.ORDER_CHANGED)
+        val order = state.currentOrder
+        if (!state.isUnlocked(order.crop)) return fail(GameError.CROP_LOCKED)
+        if (state.produceCount(order.crop) < order.quantity) return fail(GameError.NOT_ENOUGH_PRODUCE)
+        if (state.coins > Int.MAX_VALUE - order.coins || state.xp > Int.MAX_VALUE - order.xp ||
+            state.completedOrders == Int.MAX_VALUE) {
             return fail(GameError.VALUE_OUT_OF_RANGE)
         }
+        val nextLevel = 1 + (state.xp + order.xp) / 100
+        val unlocked = CropType.entries.filter { it.unlockLevel > state.level && it.unlockLevel <= nextLevel }
         return success(
             state.copy(
-                coins = state.coins + 45,
-                xp = state.xp + 20,
-                produce = state.produce + (CropType.LETTUCE to state.produceCount(CropType.LETTUCE) - 2),
+                coins = state.coins + order.coins,
+                xp = state.xp + order.xp,
+                produce = state.produce + (order.crop to state.produceCount(order.crop) - order.quantity),
                 orderClaimed = true,
+                completedOrders = state.completedOrders + 1,
             ),
-            "คุณยายขอบใจนะ! +45 เหรียญ +20 XP",
+            buildString {
+                append("${order.npc}ขอบใจนะ! +${order.coins} เหรียญ +${order.xp} XP")
+                if (nextLevel > state.level) append(" · เลเวล $nextLevel!")
+                if (unlocked.isNotEmpty()) append(" ปลดล็อก${unlocked.joinToString { it.thaiName }}")
+                append(" · มีคำขอใหม่แล้ว ไม่ต้องรีบส่ง")
+            },
+        )
+    }
+
+    fun buyDecoration(state: GameState, decoration: Decoration): GameResult {
+        if (decoration in state.ownedDecor) return fail(GameError.DECORATION_ALREADY_OWNED)
+        if (decoration.rewardOnly) return fail(GameError.DECORATION_REWARD_ONLY)
+        if (state.coins < decoration.price) return fail(GameError.NOT_ENOUGH_COINS)
+        return success(
+            state.copy(coins = state.coins - decoration.price, ownedDecor = state.ownedDecor + decoration),
+            "ได้${decoration.thaiName}แล้ว เลือกนำไปแต่งสวนได้เลย",
+        )
+    }
+
+    fun equipDecoration(state: GameState, decoration: Decoration): GameResult {
+        if (decoration !in state.ownedDecor) return fail(GameError.DECORATION_NOT_OWNED)
+        return success(
+            state.copy(equippedDecor = state.equippedDecor + (decoration.slot to decoration)),
+            "แต่งสวนด้วย${decoration.thaiName}แล้ว",
+        )
+    }
+
+    fun unequipDecoration(state: GameState, slot: DecorationSlot): GameResult = success(
+        state.copy(equippedDecor = state.equippedDecor - slot),
+        "เก็บ${slot.thaiName}เข้าคลังแล้ว นำกลับมาใช้ได้เสมอ",
+    )
+
+    fun renameCat(state: GameState, name: String): GameResult {
+        val trimmed = name.trim()
+        if (!CatState.isValidName(trimmed)) return fail(GameError.INVALID_CAT_NAME)
+        return success(state.copy(cat = state.cat.copy(name = trimmed)), "จากนี้เรียกฉันว่า $trimmed นะ เมี้ยว~")
+    }
+
+    fun petCat(state: GameState, nowMillis: Long): GameResult {
+        if (nowMillis < 0 || state.cat.bond == Int.MAX_VALUE) return fail(GameError.VALUE_OUT_OF_RANGE)
+        if (!state.cat.canPet(nowMillis)) return fail(GameError.CAT_NEEDS_REST)
+        val cat = state.cat.copy(bond = state.cat.bond + 1, lastPettedAtMillis = nowMillis)
+        return success(
+            state.copy(cat = cat),
+            "${cat.name}ชอบให้ลูบหัว · ความสนิท +1" +
+                if (cat.pose != state.cat.pose) " · ท่าใหม่: ${cat.pose.thaiName}" else "",
         )
     }
 
@@ -165,6 +233,7 @@ object GameEngine {
     }
 
     private fun readyAt(state: GameState, crop: CropType, nowMillis: Long): Long? {
+        if (nowMillis < 0 || nowMillis > Long.MAX_VALUE - state.demoOffsetMillis) return null
         val effectiveNow = state.effectiveNowMillis(nowMillis)
         if (effectiveNow > Long.MAX_VALUE - crop.growthDurationMillis) return null
         return effectiveNow + crop.growthDurationMillis

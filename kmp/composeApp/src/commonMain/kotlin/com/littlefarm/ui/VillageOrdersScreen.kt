@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.littlefarm.game.CropType
 import com.littlefarm.game.GameState
 
 @Composable
@@ -31,11 +30,12 @@ internal fun VillageOrdersScreen(
     onFarm: () -> Unit,
     onShop: () -> Unit,
 ) {
-    val owned = state.produceCount(CropType.LETTUCE).coerceAtLeast(0)
-    val missing = (2 - owned).coerceAtLeast(0)
-    val rewardFits = state.coins <= Int.MAX_VALUE - 45 && state.xp <= Int.MAX_VALUE - 20
-    val ready = !state.orderClaimed && missing == 0 && rewardFits
-    val progress = if (state.orderClaimed) 1f else (owned / 2f).coerceIn(0f, 1f)
+    val order = state.currentOrder
+    val owned = state.produceCount(order.crop).coerceAtLeast(0)
+    val missing = (order.quantity - owned).coerceAtLeast(0)
+    val rewardFits = state.coins <= Int.MAX_VALUE - order.coins && state.xp <= Int.MAX_VALUE - order.xp
+    val ready = missing == 0 && rewardFits
+    val progress = (owned.toFloat() / order.quantity).coerceIn(0f, 1f)
     Column(
         Modifier.fillMaxSize().testTag("orders_screen")
             .background(Brush.verticalGradient(listOf(Color(0xFFEBEED9), Color(0xFFF4E5C7))))
@@ -43,6 +43,10 @@ internal fun VillageOrdersScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         WoodenTitle("กระดานงานหมู่บ้าน", "ผักจากสวนเรา ความสุขของทุกคน", Modifier.fillMaxWidth())
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Badge("คำขอที่ ${state.completedOrders.toLong() + 1}", Modifier.testTag("order_number"), symbol = FarmSymbol.ORDERS)
+            GardenText("ส่งแล้ว ${state.completedOrders} งาน", Modifier.testTag("orders_completed_count"), size = 13, color = GardenColors.Wood)
+        }
         Box(Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(22.dp))) {
             NoticeboardTimber(Modifier.matchParentSize())
             Column(Modifier.fillMaxWidth().padding(12.dp)
@@ -55,63 +59,58 @@ internal fun VillageOrdersScreen(
                     NoticePin()
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-                    GrandmotherPortrait(Modifier.size(58.dp))
+                    NeighborPortrait(order.npc, Modifier.size(58.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         GardenText("ถึงชาวสวนคนเก่ง", size = 16, bold = true, color = GardenColors.LeafDark)
-                        GardenText("จาก คุณยาย", size = 13, color = GardenColors.Muted)
+                        GardenText("จาก ${order.npc}", size = 13, color = GardenColors.Muted)
                     }
                 }
-                GardenText("ผักกาดสำหรับ\nมื้อเย็นของยาย", size = 25, bold = true, color = GardenColors.LeafDark)
+                GardenText(order.title, Modifier.testTag("order_title"), size = 25, bold = true, color = GardenColors.LeafDark)
                 GardenText(
-                    if (state.orderClaimed) "“แกงจืดหม้อนี้ต้องอร่อยแน่ ๆ ขอบใจที่เอาผักมาฝากยายนะ”"
-                    else "“อยากทำแกงจืดสักหม้อ ถ้ามีผักกาดสวย ๆ เอามาฝากยายหน่อยนะ”",
+                    if (state.completedOrders == 0) "“อยากทำแกงจืดสักหม้อ ถ้ามีผักกาดสวย ๆ เอามาฝากยายหน่อยนะ”"
+                    else "“ขอ${order.crop.thaiName}จากสวนเธอหน่อยนะ ว่างเมื่อไหร่ค่อยแวะมา เรารอได้เสมอ”",
                     size = 14, color = GardenColors.Wood,
                 )
                 Box(Modifier.fillMaxWidth().height(108.dp)
                     .background(Color(0xFFEBEED3), RoundedCornerShape(19.dp)), contentAlignment = Alignment.Center) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CropArt(CropType.LETTUCE, Modifier.size(82.dp))
-                        CropArt(CropType.LETTUCE, Modifier.size(82.dp))
+                        repeat(order.quantity.coerceAtMost(3)) {
+                            CropArt(order.crop, Modifier.size(if (order.quantity > 2) 72.dp else 82.dp))
+                        }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    GardenText("ผักกาด 2 หัว", Modifier.weight(1f), size = 15, bold = true)
-                    GardenText(if (state.orderClaimed) "ส่งแล้ว" else "$owned / 2", Modifier.testTag("order_progress"),
+                    GardenText("${order.crop.thaiName} ${order.quantity} ${order.crop.produceUnit}", Modifier.weight(1f), size = 15, bold = true)
+                    GardenText("$owned / ${order.quantity}", Modifier.testTag("order_progress"),
                         size = 15, bold = true, color = GardenColors.Leaf)
                 }
                 Box(Modifier.fillMaxWidth().height(9.dp).background(Color(0xFFE5D9B8), CircleShape)) {
                     if (progress > 0f) Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(GardenColors.Leaf, CircleShape))
                 }
-                GardenText(if (state.orderClaimed) "ได้รับของตอบแทนแล้ว" else "ของตอบแทนจากคุณยาย", size = 13, color = GardenColors.Muted)
+                GardenText("ของตอบแทนจาก${order.npc}", size = 13, color = GardenColors.Muted)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f).background(Color(0xFFF5E2AC), RoundedCornerShape(13.dp)).padding(9.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         FarmIcon(FarmSymbol.COIN, Modifier.size(26.dp))
-                        GardenText("45 เหรียญ", size = 14, bold = true)
+                        GardenText("${order.coins} เหรียญ", size = 14, bold = true)
                     }
                     Column(Modifier.weight(1f).background(GardenColors.LeafLight, RoundedCornerShape(13.dp)).padding(9.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         FarmIcon(FarmSymbol.STAR, Modifier.size(26.dp))
-                        GardenText("20 XP", size = 14, bold = true, color = GardenColors.Leaf)
+                        GardenText("${order.xp} XP", size = 14, bold = true, color = GardenColors.Leaf)
                     }
                 }
                 when {
-                    state.orderClaimed -> Row(Modifier.fillMaxWidth().testTag("order_completed")
-                        .background(GardenColors.LeafLight, RoundedCornerShape(13.dp)).padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        FarmIcon(FarmSymbol.CHECK, Modifier.size(25.dp), GardenColors.Leaf)
-                        GardenText("ส่งความสุขแล้ว\nงานนี้รับรางวัลได้ครั้งเดียว", Modifier.weight(1f), size = 13, color = GardenColors.Leaf, bold = true)
-                    }
-                    missing > 0 -> GardenText("ยังขาดผักกาดอีก $missing หัว", Modifier.testTag("order_shortfall"), size = 14, color = GardenColors.Wood)
+                    missing > 0 -> GardenText("ยังขาด${order.crop.thaiName}อีก $missing ${order.crop.produceUnit}", Modifier.testTag("order_shortfall"), size = 14, color = GardenColors.Wood)
                     !rewardFits -> GardenText("ยังรับรางวัลไม่ได้ เหรียญหรือ XP ถึงขีดจำกัดแล้ว", Modifier.testTag("order_reward_full"), size = 14, color = GardenColors.Wood)
-                    else -> GardenText("ผักครบแล้ว พร้อมส่งให้คุณยาย", size = 14, color = GardenColors.Leaf, bold = true)
+                    else -> GardenText("ครบแล้ว พร้อมส่งให้${order.npc}", size = 14, color = GardenColors.Leaf, bold = true)
                 }
-                GardenButton(if (state.orderClaimed) "ส่งงานเรียบร้อยแล้ว" else "ส่งผักให้คุณยาย",
+                GardenButton("ส่งผักให้${order.npc}",
                     Modifier.fillMaxWidth().testTag("order_deliver"), enabled = ready, symbol = FarmSymbol.CHECK, onClick = onDeliver)
                 GardenText("ไม่มีเส้นตาย ไม่ต้องรีบร้อน", Modifier.fillMaxWidth(), size = 13, color = GardenColors.Muted, align = TextAlign.Center)
             }
         }
-        GentleNote("ตอนนี้มีคำขอให้ลอง 1 งาน และยังไม่มีระบบเลเวลเต็ม")
+        GentleNote("ส่งงานแล้วจะมีจดหมายฉบับใหม่ทันที · เก็บผักไว้ส่งงานหรือขายก็ได้ ไม่มีงานไหนหมดเวลา")
         GardenButton("กลับไปดูผักที่สวน", Modifier.fillMaxWidth().testTag("orders_to_farm"),
             secondary = true, symbol = FarmSymbol.FARM, onClick = onFarm)
         GardenButton("ซื้อเมล็ดสำหรับงานนี้", Modifier.fillMaxWidth().testTag("orders_to_shop"),
@@ -143,7 +142,29 @@ private fun NoticeboardTimber(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun GrandmotherPortrait(modifier: Modifier = Modifier) {
+private fun NeighborPortrait(npc: String, modifier: Modifier = Modifier) {
+    if (npc != "คุณยาย") {
+        Canvas(modifier.background(Color(0xFFE5D8B9), CircleShape)) {
+            val s = size.minDimension / 100f
+            fun point(x: Float, y: Float) = Offset(x * s, y * s)
+            val chef = npc.contains("เชฟ") || npc.contains("ร้าน")
+            drawOval(if (chef) Color(0xFFFFF6DA) else Color(0xFF8DA07B), point(17f, 66f), Size(66f * s, 33f * s))
+            drawCircle(Color(0xFF73533A), 30f * s, point(50f, 42f))
+            drawCircle(Color(0xFFF1C393), 27f * s, point(50f, 50f))
+            if (chef) {
+                drawRoundRect(Color(0xFFFFFBED), point(25f, 17f), Size(50f * s, 18f * s), CornerRadius(5f * s))
+                repeat(3) { drawCircle(Color(0xFFFFFBED), 12f * s, point(32f + it * 18f, 18f)) }
+            } else {
+                drawArc(Color(0xFF73533A), 180f, 170f, false, point(22f, 21f), Size(56f * s, 40f * s), style = Stroke(9f * s))
+            }
+            drawCircle(GardenColors.Ink, 2.2f * s, point(39f, 50f))
+            drawCircle(GardenColors.Ink, 2.2f * s, point(62f, 50f))
+            drawArc(Color(0xFFA15C43), 0f, 180f, false, point(41f, 58f), Size(18f * s, 11f * s), style = Stroke(2f * s))
+            drawCircle(Color(0xFFE59B80).copy(alpha = .5f), 5f * s, point(31f, 57f))
+            drawCircle(Color(0xFFE59B80).copy(alpha = .5f), 5f * s, point(70f, 57f))
+        }
+        return
+    }
     Canvas(modifier.background(Color(0xFFE5D8B9), CircleShape)) {
         val s = size.minDimension / 100f
         fun point(x: Float, y: Float) = Offset(x * s, y * s)

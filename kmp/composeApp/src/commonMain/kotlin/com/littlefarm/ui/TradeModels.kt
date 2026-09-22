@@ -14,7 +14,7 @@ internal data class TradeQuote(
 }
 
 internal enum class TradeBlocker {
-    INVALID_QUANTITY, NOT_ENOUGH_COINS, INVENTORY_FULL, NOT_ENOUGH_PRODUCE, WALLET_FULL,
+    INVALID_QUANTITY, CROP_LOCKED, NOT_ENOUGH_COINS, INVENTORY_FULL, NOT_ENOUGH_PRODUCE, WALLET_FULL,
 }
 
 internal fun seedTradeQuote(state: GameState, crop: CropType, quantity: Int): TradeQuote {
@@ -23,6 +23,7 @@ internal fun seedTradeQuote(state: GameState, crop: CropType, quantity: Int): Tr
     val shortfall = (total - state.coins.toLong()).coerceAtLeast(0)
     val blocker = when {
         quantity <= 0 -> TradeBlocker.INVALID_QUANTITY
+        !state.isUnlocked(crop) -> TradeBlocker.CROP_LOCKED
         shortfall > 0 -> TradeBlocker.NOT_ENOUGH_COINS
         quantity > capacity -> TradeBlocker.INVENTORY_FULL
         else -> null

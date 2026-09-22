@@ -5,11 +5,16 @@ enum class CropType(
     val growthDurationMillis: Long,
     val seedPrice: Int,
     val sellPrice: Int,
+    val unlockLevel: Int = 1,
+    val harvestXp: Int,
 ) {
-    LETTUCE("ผักกาด", 2 * 60_000L, 10, 18),
-    RADISH("หัวไชเท้า", 5 * 60_000L, 20, 38),
-    CARROT("แครอต", 10 * 60_000L, 35, 70),
-    PUMPKIN("ฟักทอง", 20 * 60_000L, 60, 125),
+    LETTUCE("ผักกาด", 2 * 60_000L, 10, 18, harvestXp = 8),
+    RADISH("หัวไชเท้า", 5 * 60_000L, 20, 38, harvestXp = 10),
+    CARROT("แครอต", 10 * 60_000L, 35, 70, harvestXp = 12),
+    PUMPKIN("ฟักทอง", 20 * 60_000L, 60, 125, harvestXp = 15),
+    TOMATO("มะเขือเทศ", 15 * 60_000L, 45, 90, 2, 14),
+    STRAWBERRY("สตรอว์เบอร์รี", 30 * 60_000L, 75, 160, 3, 20),
+    FLOWER("ดอกไม้", 45 * 60_000L, 90, 200, 4, 25),
 }
 
 enum class PlotStage { UNTILLED, TILLED, PLANTED, GROWING }
@@ -24,7 +29,9 @@ data class Plot(
             readyAtMillis != null && effectiveNowMillis >= readyAtMillis
 
     fun remainingMillis(effectiveNowMillis: Long): Long =
-        readyAtMillis?.let { (it - effectiveNowMillis).coerceAtLeast(0L) } ?: 0L
+        readyAtMillis?.let { readyAt ->
+            if (effectiveNowMillis >= readyAt) 0L else readyAt - effectiveNowMillis.coerceAtLeast(0L)
+        } ?: 0L
 }
 
 data class Upgrades(
@@ -43,12 +50,29 @@ data class GameState(
     val demoOffsetMillis: Long = 0L,
     /** Optional v1 metadata; older saves remain valid and get an epoch on their next local write. */
     val startedAtMillis: Long? = null,
+    val completedOrders: Int = if (orderClaimed) 1 else 0,
+    val harvestCounts: Map<CropType, Int> = CropType.entries.associateWith { 0 },
+    val ownedDecor: Set<Decoration> = emptySet(),
+    val equippedDecor: Map<DecorationSlot, Decoration> = emptyMap(),
+    val cat: CatState = CatState(),
 ) {
     fun seedCount(crop: CropType): Int = seeds[crop] ?: 0
 
     fun produceCount(crop: CropType): Int = produce[crop] ?: 0
 
-    fun effectiveNowMillis(nowMillis: Long): Long = nowMillis + demoOffsetMillis
+    /** Saturates for rendering; actions that create timers reject an overflowing clock. */
+    fun effectiveNowMillis(nowMillis: Long): Long =
+        if (nowMillis > Long.MAX_VALUE - demoOffsetMillis) Long.MAX_VALUE else nowMillis + demoOffsetMillis
+
+    fun isUnlocked(crop: CropType): Boolean = level >= crop.unlockLevel
+
+    fun harvestCount(crop: CropType): Int = harvestCounts[crop] ?: 0
+
+    val currentOrder: NeighborOrder get() = NeighborOrder.at(completedOrders)
+
+    val earnedBadges: List<CollectionBadge> get() = CropType.entries.flatMap { crop ->
+        CollectionBadge.forCrop(crop).filter { harvestCount(crop) >= it.threshold }
+    }
 
     val level: Int get() = 1 + xp / 100
     val xpInLevel: Int get() = xp % 100
@@ -106,11 +130,18 @@ enum class GameError {
     NOT_ENOUGH_COINS,
     NOT_ENOUGH_PRODUCE,
     ORDER_ALREADY_CLAIMED,
+    ORDER_CHANGED,
     UPGRADE_ALREADY_OWNED,
     WATERING_CAN_REQUIRED,
     NOTHING_TO_WATER,
     RESCUE_NOT_AVAILABLE,
     VALUE_OUT_OF_RANGE,
+    CROP_LOCKED,
+    DECORATION_ALREADY_OWNED,
+    DECORATION_NOT_OWNED,
+    DECORATION_REWARD_ONLY,
+    INVALID_CAT_NAME,
+    CAT_NEEDS_REST,
 }
 
 sealed interface GameResult {

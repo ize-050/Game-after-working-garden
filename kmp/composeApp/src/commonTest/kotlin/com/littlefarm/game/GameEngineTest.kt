@@ -20,7 +20,7 @@ class GameEngineTest {
         val state = GameState.initial(now)
         assertEquals(120, state.coins)
         assertEquals(0, state.xp)
-        assertEquals(listOf(3, 2, 0, 0), CropType.entries.map(state::seedCount))
+        assertEquals(listOf(3, 2, 0, 0, 0, 0, 0), CropType.entries.map(state::seedCount))
         assertTrue(state.produce.values.all { it == 0 })
         assertEquals(6, state.plots.size)
         assertEquals(
@@ -35,7 +35,7 @@ class GameEngineTest {
     }
 
     @Test
-    fun fullPlantingCycleConsumesOneSeedAndHarvestsOneCropWithoutCoinsOrXp() {
+    fun fullPlantingCycleConsumesOneSeedAndHarvestsOneCropWithXpButNoCoins() {
         val original = GameState.initial(now)
         val tilled = GameEngine.till(original, 0).success()
         val planted = GameEngine.plant(tilled, 0, CropType.LETTUCE).success()
@@ -50,7 +50,8 @@ class GameEngineTest {
         assertEquals(1, harvested.produceCount(CropType.LETTUCE))
         assertEquals(Plot(stage = PlotStage.TILLED), harvested.plots[0])
         assertEquals(120, harvested.coins)
-        assertEquals(0, harvested.xp)
+        assertEquals(8, harvested.xp)
+        assertEquals(1, harvested.harvestCount(CropType.LETTUCE))
         assertError(GameError.CROP_NOT_READY, GameEngine.harvest(harvested, 0, now + 120_000L))
 
         assertEquals(PlotStage.UNTILLED, original.plots[0].stage)
@@ -102,7 +103,7 @@ class GameEngineTest {
     }
 
     @Test
-    fun orderConsumesTwoLettuceAndRewardsExactlyOnce() {
+    fun orderConsumesTwoLettuceAndImmediatelyAdvancesToANewRequest() {
         val state = GameState.initial(now)
         assertError(GameError.NOT_ENOUGH_PRODUCE, GameEngine.fulfillOrder(state))
         val stocked = state.copy(produce = state.produce + (CropType.LETTUCE to 3))
@@ -111,7 +112,9 @@ class GameEngineTest {
         assertEquals(20, claimed.xp)
         assertEquals(1, claimed.produceCount(CropType.LETTUCE))
         assertTrue(claimed.orderClaimed)
-        assertError(GameError.ORDER_ALREADY_CLAIMED, GameEngine.fulfillOrder(claimed))
+        assertEquals(1, claimed.completedOrders)
+        assertEquals(CropType.CARROT, claimed.currentOrder.crop)
+        assertError(GameError.NOT_ENOUGH_PRODUCE, GameEngine.fulfillOrder(claimed))
         val sold = GameEngine.sellProduce(claimed, CropType.LETTUCE).success()
         assertEquals(183, sold.coins)
         assertEquals(20, sold.xp)

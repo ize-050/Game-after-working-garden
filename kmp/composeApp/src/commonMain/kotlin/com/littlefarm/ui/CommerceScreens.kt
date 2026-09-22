@@ -37,6 +37,10 @@ internal fun SeedShopScreen(
     val latestBuy by rememberUpdatedState(onBuy)
     CommercePage("shop_screen") {
         SeedShopScenery()
+        PaperCard(Modifier.fillMaxWidth(), tint = GardenColors.LeafLight, padding = 13.dp) {
+            GardenText("ชาวสวนเลเวล ${state.level}", size = 18, bold = true, color = GardenColors.LeafDark)
+            GardenText("เก็บเกี่ยวและส่งงานเพื่อรับ XP · ผักใหม่รออยู่ที่เลเวล 2, 3 และ 4", size = 13, color = GardenColors.Leaf)
+        }
         if (onReturnToPlot != null) {
             GardenButton("กลับไปปลูกแปลงเดิม", Modifier.fillMaxWidth().testTag("return_to_plot"), symbol = FarmSymbol.SEED, secondary = true, onClick = onReturnToPlot)
         }
@@ -54,21 +58,26 @@ internal fun SeedShopScreen(
             val quote = seedTradeQuote(state, crop, quantity)
             PaperCard(Modifier.fillMaxWidth(), padding = 15.dp) {
                 CommerceCropHeader(crop, "มีเมล็ด ${state.seedCount(crop)} ซอง", "ซองละ ${crop.seedPrice} เหรียญ", seedPacket = true)
-                GardenText("โต ${crop.growthDurationMillis / 60_000L} นาที · ผลผลิตขายได้ ${crop.sellPrice} เหรียญ/หัว", size = 13, color = GardenColors.Muted)
+                GardenText("โต ${crop.growthDurationMillis / 60_000L} นาที · เก็บเกี่ยว +${crop.harvestXp} XP", size = 13, color = GardenColors.Muted)
+                if (!state.isUnlocked(crop)) {
+                    Badge("ปลดล็อกเลเวล ${crop.unlockLevel}", Modifier.testTag("crop_locked_${crop.name}"), symbol = FarmSymbol.STAR,
+                        color = GardenColors.Wood, background = GardenColors.Cream)
+                }
                 QuantityChooser(
                     crop = crop, quantity = quantity, unit = "ซอง", prefix = "buy",
-                    canDecrease = quantity > 1, canIncrease = quantity < capacity,
+                    canDecrease = state.isUnlocked(crop) && quantity > 1, canIncrease = state.isUnlocked(crop) && quantity < capacity,
                     onDecrease = { requestedQuantity = quantity - 1 },
                     onIncrease = { requestedQuantity = quantity + 1 },
                 )
                 TradeTotal("ราคารวม", quote.totalCoins, "buy_total_${crop.name}")
                 when (quote.blocker) {
+                    TradeBlocker.CROP_LOCKED -> GardenText("ค่อย ๆ ดูแลสวน อีก ${((crop.unlockLevel - 1) * 100 - state.xp).coerceAtLeast(0)} XP ก็ปลูกได้แล้ว", size = 14, color = GardenColors.Wood)
                     TradeBlocker.NOT_ENOUGH_COINS -> GardenText("ขาดอีก ${quote.missingCoins} เหรียญ · ลดจำนวนหรือไปขายผักได้นะ", Modifier.testTag("buy_shortfall_${crop.name}"), size = 14, color = GardenColors.Wood)
                     TradeBlocker.INVENTORY_FULL -> GardenText("กระเป๋าเมล็ดชนิดนี้เต็มแล้ว ลองนำไปปลูกก่อนนะ", size = 14, color = GardenColors.Wood)
                     else -> Unit
                 }
                 GardenButton(
-                    "ซื้อเมล็ด $quantity ซอง",
+                    if (state.isUnlocked(crop)) "ซื้อเมล็ด $quantity ซอง" else "ปลดล็อกที่เลเวล ${crop.unlockLevel}",
                     Modifier.fillMaxWidth().testTag("buy_${crop.name}").semantics {
                         contentDescription = "ซื้อเมล็ด${crop.thaiName} $quantity ซอง รวม ${quote.totalCoins} เหรียญ"
                     },
@@ -107,26 +116,26 @@ internal fun ProduceMarketScreen(
             val quantity = if (available == 0) 0 else requestedQuantity.coerceIn(1, available)
             val quote = produceTradeQuote(state, crop, quantity)
             PaperCard(Modifier.fillMaxWidth(), padding = 15.dp) {
-                CommerceCropHeader(crop, "ในกระเป๋า $available หัว", "หัวละ ${crop.sellPrice} เหรียญ")
+                CommerceCropHeader(crop, "ในกระเป๋า $available ${crop.produceUnit}", "${crop.produceUnit}ละ ${crop.sellPrice} เหรียญ")
                 if (available == 0) {
                     GardenText("ยังไม่มี${crop.thaiName}ในตะกร้า", size = 14, color = GardenColors.Muted)
                 } else {
                     QuantityChooser(
-                        crop = crop, quantity = quantity, unit = "หัว", prefix = "sell",
+                        crop = crop, quantity = quantity, unit = crop.produceUnit, prefix = "sell",
                         canDecrease = quantity > 1, canIncrease = quantity < available,
                         onDecrease = { requestedQuantity = quantity - 1 },
                         onIncrease = { requestedQuantity = quantity + 1 },
                     )
                     TradeTotal("รับเหรียญรวม", quote.totalCoins, "sell_total_${crop.name}")
-                    GardenText("ขายแล้วเหลือ ${available - quantity} หัวในกระเป๋า", size = 13, color = GardenColors.Muted)
+                    GardenText("ขายแล้วเหลือ ${available - quantity} ${crop.produceUnit}ในกระเป๋า", size = 13, color = GardenColors.Muted)
                 }
                 if (quote.blocker == TradeBlocker.WALLET_FULL) {
                     GardenText("กระเป๋าเหรียญรับไม่ไหว ลองลดจำนวนหรือใช้เหรียญก่อนนะ", Modifier.testTag("sell_wallet_full_${crop.name}"), size = 14, color = GardenColors.Wood)
                 }
                 GardenButton(
-                    if (available == 0) "ยังไม่มีผลผลิต" else "ขาย $quantity หัว",
+                    if (available == 0) "ยังไม่มีผลผลิต" else "ขาย $quantity ${crop.produceUnit}",
                     Modifier.fillMaxWidth().testTag("sell_${crop.name}").semantics {
-                        contentDescription = if (available == 0) "ยังไม่มี${crop.thaiName}สำหรับขาย" else "ขาย${crop.thaiName} $quantity หัว รับ ${quote.totalCoins} เหรียญ"
+                        contentDescription = if (available == 0) "ยังไม่มี${crop.thaiName}สำหรับขาย" else "ขาย${crop.thaiName} $quantity ${crop.produceUnit} รับ ${quote.totalCoins} เหรียญ"
                     },
                     enabled = quote.canTrade, symbol = FarmSymbol.COIN,
                 ) {
@@ -225,4 +234,7 @@ private fun CropType.commerceTint(): Color = when (this) {
     CropType.RADISH -> Color(0xFFECE4DC)
     CropType.CARROT -> Color(0xFFF8E6C9)
     CropType.PUMPKIN -> Color(0xFFF7E0BC)
+    CropType.TOMATO -> Color(0xFFF6DDD1)
+    CropType.STRAWBERRY -> Color(0xFFF4DBDA)
+    CropType.FLOWER -> Color(0xFFF2E3BD)
 }

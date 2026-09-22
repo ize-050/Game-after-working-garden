@@ -9,6 +9,7 @@
 		00000000000000000000000A /* LittleFarmApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000007 /* LittleFarmApp.swift */; };
 		00000000000000000000000B /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000008 /* ComposeView.swift */; };
 		000000000000000000000017 /* NativeAccountPlatform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* NativeAccountPlatform.swift */; };
+		00000000000000000000001A /* NativeHarvestNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000019 /* NativeHarvestNotifications.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,6 +19,7 @@
 		000000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		000000000000000000000016 /* NativeAccountPlatform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAccountPlatform.swift; sourceTree = "<group>"; };
 		000000000000000000000018 /* LittleFarm.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LittleFarm.entitlements; sourceTree = "<group>"; };
+		000000000000000000000019 /* NativeHarvestNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHarvestNotifications.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +48,7 @@
 				000000000000000000000007 /* LittleFarmApp.swift */,
 				000000000000000000000008 /* ComposeView.swift */,
 				000000000000000000000016 /* NativeAccountPlatform.swift */,
+				000000000000000000000019 /* NativeHarvestNotifications.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -136,6 +139,7 @@
 				00000000000000000000000A /* LittleFarmApp.swift in Sources */,
 				00000000000000000000000B /* ComposeView.swift in Sources */,
 				000000000000000000000017 /* NativeAccountPlatform.swift in Sources */,
+				00000000000000000000001A /* NativeHarvestNotifications.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -178,7 +182,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",);
@@ -188,7 +192,7 @@
 				LITTLEFARM_APPLE_SIGN_IN_ENABLED = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks",);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.2.0;
 				OTHER_LDFLAGS = ("$(inherited)", "-ObjC", "-framework", Shared,);
 				PRODUCT_BUNDLE_IDENTIFIER = com.littlefarm.game;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -203,7 +207,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",);
 				GENERATE_INFOPLIST_FILE = NO;
@@ -212,7 +216,7 @@
 				LITTLEFARM_APPLE_SIGN_IN_ENABLED = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks",);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.2.0;
 				OTHER_LDFLAGS = ("$(inherited)", "-ObjC", "-framework", Shared,);
 				PRODUCT_BUNDLE_IDENTIFIER = com.littlefarm.game;
 				PRODUCT_NAME = "$(TARGET_NAME)";

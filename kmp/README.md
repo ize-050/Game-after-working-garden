@@ -1,13 +1,17 @@
 # สวนหลังเลิกงาน — Kotlin Multiplatform
 
-Native starter ของ Little Farm ใช้ **Kotlin Multiplatform + Compose Multiplatform** แชร์ระบบเกมและ UI ระหว่าง iOS/Android ไม่ใช่ WebView และไม่ใช้ Expo
+แอป native MVP ของ Little Farm ใช้ **Kotlin Multiplatform + Compose Multiplatform** แชร์ระบบเกมและ UI ระหว่าง iOS/Android ไม่ใช่ WebView และไม่ใช้ Expo
+
+## อัปเดต v0.2
+
+เพิ่มครบ 6 ระบบ: XP จากเก็บเกี่ยวและส่งงาน, พืชใหม่ปลดล็อกเลเวล 2–4, งานเพื่อนบ้านหมุนเวียน, ของแต่งสวน 5 จุด, สมุดพืชพร้อมตราและรางวัล, แมวตั้งชื่อ/ลูบหัว/ปลดล็อกท่า และแจ้งเตือนรวมแบบเลือกเปิด ย้ายเซฟ schema 1 ไป 2 โดยเก็บสวนเดิมไว้ อ่าน [PROGRESSION-UPDATE.md](PROGRESSION-UPDATE.md) สำหรับกติกาและข้อจำกัด ภาพ preview เพิ่มหน้าแต่งสวน สมุดพืช แมว และสวนที่แต่งแล้ว
 
 ## สิ่งที่ทำแล้ว
 
-- หน้าฟาร์มภาษาไทย แปลง 6 ช่อง ผัก 4 ชนิด ร้านเมล็ด ตลาด กระเป๋า หมู่บ้าน งาน อัปเกรด และตั้งค่า
+- หน้าฟาร์มภาษาไทย แปลง 6 ช่อง พืช 7 ชนิด ร้านเมล็ด ตลาด กระเป๋า หมู่บ้าน งาน อัปเกรด แต่งสวน สมุดพืช แมว และตั้งค่า
 - ไถ → ปลูก → รดน้ำ → รอ timestamp → เก็บ พร้อมปุ่มทดลองเวลา +5 นาที
 - เซฟ JSON มี schema/validation; iOS ใช้ UserDefaults, Android ใช้ SharedPreferences
-- กติกาเกม pure Kotlin แยกจาก UI/storage; รวมชุดทดสอบเกม เซฟ บัญชี การซื้อขาย และ feedback 75 unit tests
+- กติกาเกม pure Kotlin แยกจาก UI/storage; มีชุดทดสอบเกม เซฟ บัญชี การซื้อขาย feedback และแจ้งเตือน รายงานรอบล่าสุดอยู่ใน [PROGRESSION-UPDATE.md](PROGRESSION-UPDATE.md)
 - เลือกจำนวนซื้อ/ขาย แสดงยอดรวมและเหรียญที่ขาด จำแปลงเมื่อไปซื้อเมล็ด และแตะผักที่ยังแห้งเพื่อรดน้ำได้ทันที
 - แสดงวัน/เลเวล/XP; ดนตรีและเสียงสังเคราะห์ต้นฉบับ พร้อมตัวเลือกเสียงและลดการเคลื่อนไหวที่บันทึกแยกจากเซฟสวน
 - เอฟเฟกต์ไถ/ปลูก/รดน้ำ/เก็บเกี่ยว แมวขยับ และปุ่มตอบสนอง; ตัวหนังสือรองอย่างน้อย 13sp
@@ -15,13 +19,13 @@ Native starter ของ Little Farm ใช้ **Kotlin Multiplatform + Compose 
 - ปรับภาพและ UI ตามสไตล์ Stitch: ฉากฟาร์ม/หมู่บ้านการ์ตูน, ป้ายไม้, ปุ่มมีมิติ, ภาพผักและแปลง Canvas ตาม state จริง, ฟอนต์ Noto Sans Thai
 - เพิ่มหน้าบัญชี, Guest/UID-separated local saves, conflict confirmation, และเตรียม native Firebase Google/Apple + Firestore adapters แบบเปิดใช้ภายหลัง อ่าน [FIREBASE-SETUP.md](FIREBASE-SETUP.md)
 
-นี่คือ MVP foundation v0.1.0 ใช้ภาพต้นฉบับ Stitch ร่วมกับฉากเดิมและภาพวาด native ไม่ใช่การ export แบบ pixel-identical และยังไม่ใช่เกมเต็ม **Login/Cloud Save เตรียมโค้ดแล้วแต่ยังไม่ได้เชื่อม Firebase จริง** เสียงมี implementation แล้วแต่ยังไม่ผ่านการฟังและทดสอบ lifecycle บนมือถือจริง ยังไม่มีฤดูกาลหรือการชำระเงินจริง
+นี่คือ MVP v0.2.0 ใช้ภาพต้นฉบับ Stitch ร่วมกับฉากเดิมและภาพวาด native ไม่ใช่การ export แบบ pixel-identical และยังไม่ใช่เกมพร้อมเผยแพร่ **Login/Cloud Save เตรียมโค้ดแล้วแต่ยังไม่ได้เชื่อม Firebase จริง** เสียงและการแจ้งเตือนยังต้องตรวจ lifecycle/การส่งจริงบนมือถือ ยังไม่มีฤดูกาลหรือการชำระเงินจริง
 
-## สถานะ Simulator ล่าสุด
+## สถานะ Simulator รอบก่อนเพิ่ม v0.2
 
 22 กันยายน: ติดตั้ง iOS 26.3.1 arm64, build `.app` ดีไซน์ล่าสุด, install และ **เปิดเกมบน iPhone 17 Simulator สำเร็จแล้ว** ยืนยันหน้าสวนจาก [ภาพ Simulator จริง](verification/build/screenshots/ios-simulator-farm.png) ไม่ใช่ gallery/JVM render หลังหยุด build daemon พื้นที่คืนมาและรันได้ เหลือประมาณ 3.7 GiB ควรคืนพื้นที่เพิ่มก่อน build/ติดตั้งรอบต่อไป รายละเอียดใน [SETUP-STATUS.md](SETUP-STATUS.md)
 
-## ดูหน้าตาใหม่ / ผลตรวจ UI
+## ผลตรวจดีไซน์รอบก่อนเพิ่ม v0.2
 
 รอบเก็บดีไซน์ 22 กันยายน: ใช้ภาพต้นฉบับ Stitch ในหน้าเริ่ม/หมู่บ้าน/ร้านค้า เพิ่มแผนที่กดได้ เครื่องมือฟาร์ม กระดานไม้ ภาพอัปเกรดก่อน–หลัง และหน้าต่างเมล็ด/เติบโต อ่านรายการและข้อแตกต่างที่ยังเหลือใน [DESIGN-PARITY.md](DESIGN-PARITY.md) ไม่ใช่การยืนยัน pixel-identical หรือการรันบน iPhone จริง
 
@@ -42,7 +46,7 @@ Native starter ของ Little Farm ใช้ **Kotlin Multiplatform + Compose 
 
 ## สถานะเครื่อง / ก่อนเริ่ม build
 
-**iOS app รุ่นล่าสุด build ผ่านแล้ว** วันที่ 22 กันยายน 2026: คอมไพล์และ link Kotlin/Native framework พร้อมประกอบ SwiftUI host เป็น `.tooling/ios-build/LittleFarm.app` สำหรับ iOS Simulator arm64 ด้วย Xcode 26.3 รวมดีไซน์และ Guest/account boundary รุ่นล่าสุด
+**iOS app รุ่นก่อนเพิ่ม v0.2 build ผ่านแล้ว** วันที่ 22 กันยายน 2026: คอมไพล์และ link Kotlin/Native framework พร้อมประกอบ SwiftUI host เป็น `.tooling/ios-build/LittleFarm.app` สำหรับ iOS Simulator arm64 ด้วย Xcode 26.3 รวมดีไซน์และ Guest/account boundary ในขณะนั้น ยังไม่ได้ rebuild native binary ของส่วนขยาย v0.2 เพราะพื้นที่ต่ำกว่า guard 5 GiB
 
 ก่อนติดตั้ง runtime มีพื้นที่ว่างประมาณ **18 GiB** หลัง first boot เคยเหลือไม่ถึง **0.5 GiB** จึงหยุดเครื่องจำลองและ build daemon ก่อน พื้นที่คืนเป็น 3.2–4.2 GiB แล้วบูต/เปิดเกมสำเร็จ เหลือประมาณ **3.7 GiB** ตัว launcher ยังมี guard หยุด native build เมื่อพื้นที่ต่ำกว่า 5 GiB
 

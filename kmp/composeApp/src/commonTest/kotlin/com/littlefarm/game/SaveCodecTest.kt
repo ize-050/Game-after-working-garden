@@ -34,7 +34,7 @@ class SaveCodecTest {
     fun initialStateRoundTripsWithoutLosingAnyFields() {
         val encoded = GameSaveCodec.encode(initial)
         assertEquals(initial, GameSaveCodec.decode(encoded))
-        assertEquals(JsonPrimitive(1), (Json.parseToJsonElement(encoded) as JsonObject)["schemaVersion"])
+        assertEquals(JsonPrimitive(2), (Json.parseToJsonElement(encoded) as JsonObject)["schemaVersion"])
     }
 
     @Test
@@ -52,7 +52,7 @@ class SaveCodecTest {
         val decoded = assertNotNull(GameSaveCodec.decode(GameSaveCodec.encode(state)))
         assertEquals(state, decoded)
         assertEquals(3, decoded.coins)
-        assertEquals(20, decoded.xp)
+        assertEquals(46, decoded.xp)
         assertEquals(9, decoded.plots.size)
         assertEquals(now + 420_000L, decoded.plots[2].readyAtMillis)
         assertEquals(300_000L, decoded.demoOffsetMillis)
@@ -79,7 +79,7 @@ class SaveCodecTest {
 
     @Test
     fun unknownSchemaAndMissingRequiredFieldsAreRejected() {
-        assertNull(decodeWith("schemaVersion", JsonPrimitive(2)))
+        assertNull(decodeWith("schemaVersion", JsonPrimitive(3)))
         assertNull(decodeWith("schemaVersion", JsonPrimitive(0)))
         for (key in root().keys - "startedAtMillis") {
             assertNull(GameSaveCodec.decode(JsonObject(root() - key).toString()), key)
@@ -97,7 +97,7 @@ class SaveCodecTest {
 
     @Test
     fun negativeCountersAndOverflowingNumbersAreRejected() {
-        for (key in listOf("coins", "xp", "demoOffsetMillis")) {
+        for (key in listOf("coins", "xp", "demoOffsetMillis", "completedOrders")) {
             assertNull(decodeWith(key, JsonPrimitive(-1)), key)
         }
         assertNull(decodeWith("coins", JsonPrimitive(Int.MAX_VALUE.toLong() + 1)))
@@ -121,7 +121,7 @@ class SaveCodecTest {
 
     @Test
     fun cropMapsRequireAllKnownCropsAndNonnegativeIntegerCounts() {
-        for (mapName in listOf("seeds", "produce")) {
+        for (mapName in listOf("seeds", "produce", "harvestCounts")) {
             val counts = root()[mapName] as JsonObject
             assertNull(decodeWith(mapName, JsonObject(counts + ("LETTUCE" to JsonPrimitive(-1)))))
             assertNull(decodeWith(mapName, JsonObject(counts + ("LETTUCE" to JsonPrimitive("3")))))
@@ -178,6 +178,87 @@ class SaveCodecTest {
         for (key in listOf("expandedPlots", "largeWateringCan")) {
             assertNull(decodeWith("upgrades", JsonObject(upgrades - key)), key)
             assertNull(decodeWith("upgrades", JsonObject(upgrades + (key to JsonPrimitive("true")))), key)
+        }
+    }
+
+    private fun legacyRoot(claimed: Boolean = false): JsonObject {
+        val base = root().toMutableMap()
+        base["schemaVersion"] = JsonPrimitive(1)
+        base["orderClaimed"] = JsonPrimitive(claimed)
+        for (key in listOf("completedOrders", "harvestCounts", "ownedDecor", "equippedDecor", "cat")) base.remove(key)
+        for (key in listOf("seeds", "produce")) {
+            base[key] = JsonObject((base[key] as JsonObject).filterKeys { crop ->
+                crop in setOf("LETTUCE", "RADISH", "CARROT", "PUMPKIN")
+            })
+        }
+        return JsonObject(base)
+    }
+
+    @Test fun schemaOneMigratesMissingNewCropsAndAddsProgressionDefaultsWithoutResettingTheGarden() {
+        val migrated = assertNotNull(GameSaveCodec.decode(legacyRoot().toString()))
+        assertEquals(initial, migrated)
+        val claimed = assertNotNull(GameSaveCodec.decode(legacyRoot(claimed = true).toString()))
+        assertEquals(1, claimed.completedOrders)
+        assertEquals(CropType.CARROT, claimed.currentOrder.crop)
+        assertEquals(initial.plots, claimed.plots)
+        assertEquals(initial.seeds, claimed.seeds)
+        assertEquals(initial.coins, claimed.coins)
+        assertEquals(CatState(), claimed.cat)
+        assertEquals(claimed, GameSaveCodec.decode(GameSaveCodec.encode(claimed)))
+        for (crop in CropType.entries.drop(4)) assertEquals(0, claimed.seedCount(crop))
+    }
+
+    @Test fun legacyMigrationStillRejectsMissingOldCropKeysAndUnknownCrops() {
+        val base = legacyRoot()
+        val seeds = base["seeds"] as JsonObject
+        assertNull(GameSaveCodec.decode(JsonObject(base + ("seeds" to JsonObject(seeds - "LETTUCE"))).toString()))
+        assertNull(GameSaveCodec.decode(JsonObject(base + ("seeds" to JsonObject(seeds + ("WEED" to JsonPrimitive(1))))).toString()))
+    }
+
+    @Test fun schemaTwoRoundTripsDecorCollectionCatAndRenewableOrders() {
+        val state = initial.copy(
+            xp = 300,
+            completedOrders = 9,
+            orderClaimed = true,
+            harvestCounts = initial.harvestCounts + (CropType.CARROT to 50),
+            ownedDecor = setOf(Decoration.HOUSE_MINT, Decoration.STAR_LAMP, Decoration.FLOWER_FENCE),
+            equippedDecor = mapOf(DecorationSlot.HOUSE to Decoration.HOUSE_MINT, DecorationSlot.LAMP to Decoration.STAR_LAMP),
+            cat = CatState("น้องส้ม", 15, now),
+        )
+        assertEquals(state, GameSaveCodec.decode(GameSaveCodec.encode(state)))
+    }
+
+    @Test fun schemaTwoRejectsInconsistentOrderMigrationFlags() {
+        assertNull(decodeWith("completedOrders", JsonPrimitive(1)))
+        assertNull(decodeWith("orderClaimed", JsonPrimitive(true)))
+        assertNull(decodeWith("completedOrders", JsonPrimitive("0")))
+        assertNull(decodeWith("completedOrders", JsonPrimitive(Int.MAX_VALUE.toLong() + 1)))
+    }
+
+    @Test fun decorationsRequireKnownUniqueItemsAndMatchingOwnedSlots() {
+        assertNull(decodeWith("ownedDecor", JsonArray(listOf(JsonPrimitive("FAKE")))))
+        assertNull(decodeWith("ownedDecor", JsonArray(listOf(JsonPrimitive("WOOD_FENCE"), JsonPrimitive("WOOD_FENCE")))))
+        assertNull(decodeWith("ownedDecor", JsonArray(listOf(JsonPrimitive(1)))))
+        assertNull(decodeWith("ownedDecor", JsonObject(emptyMap())))
+        assertNull(decodeWith("equippedDecor", JsonObject(mapOf("FENCE" to JsonPrimitive("WOOD_FENCE")))))
+        val owned = root() + ("ownedDecor" to JsonArray(listOf(JsonPrimitive("WOOD_FENCE"))))
+        for (slot in listOf("LAMP", "BAD_SLOT")) {
+            val invalid = owned + ("equippedDecor" to JsonObject(mapOf(slot to JsonPrimitive("WOOD_FENCE"))))
+            assertNull(GameSaveCodec.decode(JsonObject(invalid).toString()))
+        }
+    }
+
+    @Test fun catSaveValidatesEveryFieldWithoutCoercingTypes() {
+        val cat = root()["cat"] as JsonObject
+        for (key in cat.keys) assertNull(decodeWith("cat", JsonObject(cat - key)))
+        for (badName in listOf("", "  ", " a", "a ", "a\nb", "a".repeat(25))) {
+            assertNull(decodeWith("cat", JsonObject(cat + ("name" to JsonPrimitive(badName)))))
+        }
+        for (badBond in listOf(JsonPrimitive(-1), JsonPrimitive("1"), JsonPrimitive(Int.MAX_VALUE.toLong() + 1))) {
+            assertNull(decodeWith("cat", JsonObject(cat + ("bond" to badBond))))
+        }
+        for (badTime in listOf(JsonPrimitive(-1), JsonPrimitive("1"), JsonPrimitive(false))) {
+            assertNull(decodeWith("cat", JsonObject(cat + ("lastPettedAtMillis" to badTime))))
         }
     }
 }

@@ -141,6 +141,7 @@ public suspend fun runDesignParitySmoke() {
             plots = initial.plots + List(3) { Plot() },
             upgrades = Upgrades(expandedPlots = true, largeWateringCan = true),
             orderClaimed = true,
+            completedOrders = 1,
             demoOffsetMillis = 15 * 60_000L,
         )
     }
@@ -258,10 +259,12 @@ public suspend fun runDesignParitySmoke() {
         fixture.click("action_harvest")
         val expected = twoReady.copy(
             produce = twoReady.produce + (CropType.CARROT to 1),
+            xp = twoReady.xp + CropType.CARROT.harvestXp,
+            harvestCounts = twoReady.harvestCounts + (CropType.CARROT to 1),
             plots = twoReady.plots.mapIndexed { index, plot -> if (index == 1) Plot(stage = PlotStage.TILLED) else plot },
         )
         check(fixture.save.state == expected && fixture.save.writes == writesBefore + 1) {
-            "Harvest shortcut must collect only the first ready crop and not grant sale coins or XP"
+            "Harvest shortcut must collect only the first ready crop, grant harvest XP/collection credit, and not grant sale coins"
         }
         fixture.paneTitleContains("เก็บเกี่ยวความสุข")
     }

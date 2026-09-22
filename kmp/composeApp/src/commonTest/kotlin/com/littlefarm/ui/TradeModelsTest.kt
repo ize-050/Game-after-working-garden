@@ -2,6 +2,7 @@ package com.littlefarm.ui
 
 import com.littlefarm.game.CropType
 import com.littlefarm.game.GameEngine
+import com.littlefarm.game.GameError
 import com.littlefarm.game.GameResult
 import com.littlefarm.game.GameState
 import kotlin.test.Test
@@ -86,7 +87,7 @@ class TradeModelsTest {
     @Test
     fun quotesAndCommittedEngineTransactionsAgreeForAllCrops() {
         for (crop in CropType.entries) {
-            val state = initial.copy(coins = 2_000, produce = initial.produce + (crop to 4))
+            val state = initial.copy(coins = 2_000, xp = 300, produce = initial.produce + (crop to 4))
             val buy = seedTradeQuote(state, crop, 3)
             val bought = assertIs<GameResult.Success>(GameEngine.buySeeds(state, crop, 3)).state
             assertTrue(buy.canTrade)
@@ -97,6 +98,26 @@ class TradeModelsTest {
             assertTrue(sell.canTrade)
             assertEquals(state.coins.toLong() + sell.totalCoins, sold.coins.toLong())
             assertEquals(0, sold.produceCount(crop))
+        }
+    }
+
+    @Test
+    fun newCropQuotesAndEngineStayLockedUntilTheirExactLevelThreshold() {
+        for (crop in listOf(CropType.TOMATO, CropType.STRAWBERRY, CropType.FLOWER)) {
+            val threshold = (crop.unlockLevel - 1) * 100
+            for (xp in listOf(0, threshold - 1)) {
+                val locked = initial.copy(coins = 2_000, xp = xp)
+                val quote = seedTradeQuote(locked, crop, 1)
+                assertEquals(TradeBlocker.CROP_LOCKED, quote.blocker, "${crop.name} at $xp XP")
+                assertFalse(quote.canTrade)
+                assertEquals(GameError.CROP_LOCKED, assertIs<GameResult.Failure>(GameEngine.buySeeds(locked, crop, 1)).error)
+            }
+            val unlocked = initial.copy(coins = 2_000, xp = threshold)
+            val quote = seedTradeQuote(unlocked, crop, 1)
+            assertTrue(quote.canTrade, "${crop.name} unlocks at $threshold XP")
+            val bought = assertIs<GameResult.Success>(GameEngine.buySeeds(unlocked, crop, 1)).state
+            assertEquals(unlocked.coins.toLong() - quote.totalCoins, bought.coins.toLong())
+            assertEquals(1, bought.seedCount(crop))
         }
     }
 }

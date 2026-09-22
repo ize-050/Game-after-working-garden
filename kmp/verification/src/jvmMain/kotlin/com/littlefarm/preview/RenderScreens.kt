@@ -14,6 +14,7 @@ import com.littlefarm.game.GameSaveCodec
 import com.littlefarm.game.GameState
 import com.littlefarm.game.GameEngine
 import com.littlefarm.game.GameResult
+import com.littlefarm.game.Decoration
 import com.littlefarm.platform.SaveStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -40,14 +41,22 @@ fun main(args: Array<String>) = runBlocking {
         Preview("06-bag", "BAG"), Preview("07-shop", "SHOP"), Preview("08-market", "MARKET"),
         Preview("09-orders", "ORDERS"), Preview("10-upgrades", "UPGRADES"),
         Preview("11-village", "VILLAGE"), Preview("12-settings", "SETTINGS"),
-        Preview("13-account", "ACCOUNT")
+        Preview("13-account", "ACCOUNT"), Preview("14-decorations", "DECORATIONS"),
+        Preview("15-collection", "COLLECTION"), Preview("16-cat", "CAT"), Preview("17-grown-garden", "FARM")
     )
     for ((width, height) in listOf(393 to 852, 320 to 640)) {
         for (preview in previews) {
             val now = System.currentTimeMillis()
             val initial = GameState.initial(now)
             // Show the real post-harvest state, not a success message with zero inventory.
-            val fixture = if (preview.harvest != null || preview.page == "MARKET") {
+            val fixture = if (preview.name == "17-grown-garden" || preview.page in listOf("DECORATIONS", "COLLECTION", "CAT")) {
+                initial.copy(coins = 650, xp = 320,
+                    harvestCounts = CropType.entries.associateWith { if (it == CropType.LETTUCE) 50 else 3 },
+                    ownedDecor = Decoration.entries.toSet(),
+                    equippedDecor = listOf(Decoration.FLOWER_FENCE, Decoration.STONE_PATH, Decoration.STAR_LAMP,
+                        Decoration.GARDEN_BENCH, Decoration.HOUSE_MINT).associateBy { it.slot },
+                    cat = initial.cat.copy(name = "โมจิ", bond = 15))
+            } else if (preview.harvest != null || preview.page == "MARKET") {
                 (GameEngine.harvest(initial, 5, now) as GameResult.Success).state
             } else initial
             val store = PreviewSave(fixture)
@@ -74,7 +83,7 @@ fun main(args: Array<String>) = runBlocking {
                     "tag=$tag clickable=$clickable bounds=${node.boundsInRoot} text=$text description=$description"
                 })
                 println("Rendered $name")
-                if (preview.page in listOf("SHOP", "MARKET", "ORDERS", "UPGRADES", "SETTINGS")) {
+                if (preview.page in listOf("SHOP", "MARKET", "ORDERS", "UPGRADES", "SETTINGS", "DECORATIONS", "COLLECTION", "CAT")) {
                     val scroll = semantics.firstOrNull { it.config.getOrNull(SemanticsActions.ScrollBy) != null }
                     check(scroll?.config?.getOrNull(SemanticsActions.ScrollBy)?.action?.invoke(0f, 10_000f) == true) {
                         "Long page ${preview.page} must be scrollable to its final controls"
