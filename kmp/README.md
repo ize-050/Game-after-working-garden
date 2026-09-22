@@ -1,128 +1,233 @@
-# สวนหลังเลิกงาน — Kotlin Multiplatform
+# วิธีรัน Little Farm — Kotlin Multiplatform
 
-แอป native MVP ของ Little Farm ใช้ **Kotlin Multiplatform + Compose Multiplatform** แชร์ระบบเกมและ UI ระหว่าง iOS/Android ไม่ใช่ WebView และไม่ใช้ Expo
+แอปเกม **สวนหลังเลิกงาน v0.2** ใช้ Kotlin Multiplatform + Compose Multiplatform แชร์ UI และกติกาเกมบน iOS/Android ไม่ใช่ WebView และไม่ใช้ Expo
 
-## อัปเดต v0.2
+มีเลเวลปลดล็อกพืช 7 ชนิด งานต่อเนื่อง แต่งสวน สมุดพืช แมว และแจ้งเตือนแบบเลือกเปิด เล่น Guest ออฟไลน์ได้โดยไม่ต้องตั้ง Firebase ดู [กติกาและรายละเอียด v0.2](PROGRESSION-UPDATE.md)
 
-เพิ่มครบ 6 ระบบ: XP จากเก็บเกี่ยวและส่งงาน, พืชใหม่ปลดล็อกเลเวล 2–4, งานเพื่อนบ้านหมุนเวียน, ของแต่งสวน 5 จุด, สมุดพืชพร้อมตราและรางวัล, แมวตั้งชื่อ/ลูบหัว/ปลดล็อกท่า และแจ้งเตือนรวมแบบเลือกเปิด ย้ายเซฟ schema 1 ไป 2 โดยเก็บสวนเดิมไว้ อ่าน [PROGRESSION-UPDATE.md](PROGRESSION-UPDATE.md) สำหรับกติกาและข้อจำกัด ภาพ preview เพิ่มหน้าแต่งสวน สมุดพืช แมว และสวนที่แต่งแล้ว
+## เตรียมเครื่อง
 
-## สิ่งที่ทำแล้ว
+- **JDK 21**: launcher ใช้ JBR ที่ `/Applications/Android Studio.app/Contents/jbr/Contents/Home` โดยอัตโนมัติ หรือกำหนด `LITTLEFARM_JAVA_HOME` ให้ชี้ไป JDK ของคุณ ถ้าตำแหน่งที่เลือกไม่พบ Java จะลอง `JAVA_HOME` ต่อ
+- **อินเทอร์เน็ตตอน build ครั้งแรก**: ไฟล์ติดตั้ง Gradle (distribution), dependencies และ Kotlin/Native toolchain ไม่รวมใน Git แต่มี wrapper สำหรับดาวน์โหลดให้แล้ว หลังดาวน์โหลดครบจึงค่อยเติม `--offline` ได้
+- **พื้นที่ว่าง**: ควรเตรียม 10–20 GB หรือมากกว่านั้นหากยังไม่มี SDK/runtime ตัว launcher หยุด iOS/native build เมื่อพื้นที่ต่ำกว่า **5 GiB** ไม่แนะนำให้ข้าม guard เพื่อฝืน build
+- **Mac desktop preview**: ไม่ต้องมี Xcode หรือ Android SDK แต่ต้องรันใน desktop session ที่แสดงหน้าต่างได้
+- **iOS**: Mac Apple Silicon, Xcode และ iOS Simulator runtime โปรเจกต์มี `iosArm64` และ `iosSimulatorArm64` เท่านั้น ยังไม่มี target สำหรับ Intel Mac Simulator
+- **Android**: Android Studio รุ่นที่รองรับ AGP 9.1 หรือใช้ Gradle CLI กับ Android SDK API 36, SDK Build-Tools ที่ AGP ต้องการ และ Platform-Tools
 
-- หน้าฟาร์มภาษาไทย แปลง 6 ช่อง พืช 7 ชนิด ร้านเมล็ด ตลาด กระเป๋า หมู่บ้าน งาน อัปเกรด แต่งสวน สมุดพืช แมว และตั้งค่า
-- ไถ → ปลูก → รดน้ำ → รอ timestamp → เก็บ พร้อมปุ่มทดลองเวลา +5 นาที
-- เซฟ JSON มี schema/validation; iOS ใช้ UserDefaults, Android ใช้ SharedPreferences
-- กติกาเกม pure Kotlin แยกจาก UI/storage; มีชุดทดสอบเกม เซฟ บัญชี การซื้อขาย feedback และแจ้งเตือน รายงานรอบล่าสุดอยู่ใน [PROGRESSION-UPDATE.md](PROGRESSION-UPDATE.md)
-- เลือกจำนวนซื้อ/ขาย แสดงยอดรวมและเหรียญที่ขาด จำแปลงเมื่อไปซื้อเมล็ด และแตะผักที่ยังแห้งเพื่อรดน้ำได้ทันที
-- แสดงวัน/เลเวล/XP; ดนตรีและเสียงสังเคราะห์ต้นฉบับ พร้อมตัวเลือกเสียงและลดการเคลื่อนไหวที่บันทึกแยกจากเซฟสวน
-- เอฟเฟกต์ไถ/ปลูก/รดน้ำ/เก็บเกี่ยว แมวขยับ และปุ่มตอบสนอง; ตัวหนังสือรองอย่างน้อย 13sp
-- iOS host มี Xcode project และ scheme `LittleFarm`; Android ใช้ Android-KMP library plugin รุ่นใหม่
-- ปรับภาพและ UI ตามสไตล์ Stitch: ฉากฟาร์ม/หมู่บ้านการ์ตูน, ป้ายไม้, ปุ่มมีมิติ, ภาพผักและแปลง Canvas ตาม state จริง, ฟอนต์ Noto Sans Thai
-- เพิ่มหน้าบัญชี, Guest/UID-separated local saves, conflict confirmation, และเตรียม native Firebase Google/Apple + Firestore adapters แบบเปิดใช้ภายหลัง อ่าน [FIREBASE-SETUP.md](FIREBASE-SETUP.md)
+เวอร์ชันที่โค้ดกำหนด: Kotlin/Compose compiler **2.4.10**, Compose Multiplatform **1.11.1**, AGP **9.1.0**, Gradle **9.3.1**; Android minSdk **24**, compileSdk/targetSdk **36**, iOS deployment target **15.0** ไม่ต้องติดตั้ง Gradle แยก ให้ใช้ wrapper ที่อยู่ใน repo
 
-นี่คือ MVP v0.2.0 ใช้ภาพต้นฉบับ Stitch ร่วมกับฉากเดิมและภาพวาด native ไม่ใช่การ export แบบ pixel-identical และยังไม่ใช่เกมพร้อมเผยแพร่ **Login/Cloud Save เตรียมโค้ดแล้วแต่ยังไม่ได้เชื่อม Firebase จริง** เสียงและการแจ้งเตือนยังต้องตรวจ lifecycle/การส่งจริงบนมือถือ ยังไม่มีฤดูกาลหรือการชำระเงินจริง
-
-## สถานะ Simulator รอบก่อนเพิ่ม v0.2
-
-22 กันยายน: ติดตั้ง iOS 26.3.1 arm64, build `.app` ดีไซน์ล่าสุด, install และ **เปิดเกมบน iPhone 17 Simulator สำเร็จแล้ว** ยืนยันหน้าสวนจาก [ภาพ Simulator จริง](verification/build/screenshots/ios-simulator-farm.png) ไม่ใช่ gallery/JVM render หลังหยุด build daemon พื้นที่คืนมาและรันได้ เหลือประมาณ 3.7 GiB ควรคืนพื้นที่เพิ่มก่อน build/ติดตั้งรอบต่อไป รายละเอียดใน [SETUP-STATUS.md](SETUP-STATUS.md)
-
-## ผลตรวจดีไซน์รอบก่อนเพิ่ม v0.2
-
-รอบเก็บดีไซน์ 22 กันยายน: ใช้ภาพต้นฉบับ Stitch ในหน้าเริ่ม/หมู่บ้าน/ร้านค้า เพิ่มแผนที่กดได้ เครื่องมือฟาร์ม กระดานไม้ ภาพอัปเกรดก่อน–หลัง และหน้าต่างเมล็ด/เติบโต อ่านรายการและข้อแตกต่างที่ยังเหลือใน [DESIGN-PARITY.md](DESIGN-PARITY.md) ไม่ใช่การยืนยัน pixel-identical หรือการรันบน iPhone จริง
-
-- `./scripts/gradle.sh -p verification smokeUi renderScreens jvmTest`: ผ่าน ทั้งปุ่มของ Compose จริงและ 75 unit tests; auth/cloud/audio ในชุดทดสอบใช้ fake boundary ไม่ใช่การทดสอบบริการหรือเสียงบนมือถือจริง
-- สร้างภาพ 13 หน้าจอ/สถานะ × 2 ขนาด (393×852 และ 320×640) รวมหน้าบัญชี และภาพหลังเลื่อนถึงท้ายหน้าอีก 10 ภาพ รวม 36 ภาพจาก shared Compose จริง ไม่ใช่ภาพ mockup HTML
-- รูปอยู่ใน `verification/build/screenshots/`; เปิดไฟล์ PNG ใน Codex ได้โดยตรง แกลเลอรี `preview/index.html` ใช้ภาพเหล่านี้และเป็นภาพนิ่งเท่านั้น ไม่ควรเปิด HTTP server ครอบทั้งโฟลเดอร์โปรเจกต์ เพราะจะเปิดให้เข้าถึง source/config ที่ไม่ใช่ภาพด้วย
-- โค้ด UI/เสียง iOS compile และ link ผ่านแล้ว; full `.app` รุ่นล่าสุด build ผ่านหลังแก้ callback Swift/Kotlin เป็น `Void` และเปิดหน้าสวนบน iPhone 17 Simulator ได้แล้ว ยังไม่ใช่การทดสอบบน iPhone เครื่องจริงหรือครบทุกระบบ
-
-รายละเอียดรอบ MVP: [MVP-UPDATE.md](MVP-UPDATE.md) · ภาพ, prompt และขอบเขต QA เดิม: [VISUAL-UPDATE.md](VISUAL-UPDATE.md)
-
-## ทดลองเล่น shared game บน Mac
+ถ้าติดตั้ง JDK 21 แยกและ macOS มองเห็น JDK นั้น:
 
 ```sh
-./scripts/gradle.sh -p verification playDesktop --offline --no-daemon --console=plain
+/usr/libexec/java_home -v 21
+export LITTLEFARM_JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+"$LITTLEFARM_JAVA_HOME/bin/java" -version
 ```
 
-นี่คือหน้าต่างทดสอบ Compose/Desktop จาก UI และกติกาเดียวกับมือถือ **ไม่ใช่ iOS Simulator** และไม่ใช่ HTML gallery ใช้ Guest เท่านั้น; เซฟและตัวเลือกเสียงแยกไว้ใน `.tooling/desktop-preview/` ไม่อ่านหรือแก้เซฟของ iOS/Android ปิดหน้าต่างเพื่อหยุดโปรแกรม เปิดอีกครั้งเพื่อเล่นต่อ หากอุปกรณ์เสียงไม่พร้อมเกมยังเล่นได้และมีข้อความแจ้งในตั้งค่า
+ถ้าคำสั่งแรกหา JDK ไม่พบ ให้ติดตั้ง JDK 21 หรือใช้ Java ที่มากับ Android Studio ก่อน ค่า `export` มีผลใน Terminal หน้าต่างนี้ ไม่ได้แก้ shell profile และ Xcode ที่เปิดจาก Dock อาจไม่ได้รับค่านี้ ใช้คำสั่ง CLI ด้านล่างจาก Terminal เดียวกันได้
 
-## สถานะเครื่อง / ก่อนเริ่ม build
+## เข้าโฟลเดอร์ให้ถูกก่อน
 
-**iOS app รุ่นก่อนเพิ่ม v0.2 build ผ่านแล้ว** วันที่ 22 กันยายน 2026: คอมไพล์และ link Kotlin/Native framework พร้อมประกอบ SwiftUI host เป็น `.tooling/ios-build/LittleFarm.app` สำหรับ iOS Simulator arm64 ด้วย Xcode 26.3 รวมดีไซน์และ Guest/account boundary ในขณะนั้น ยังไม่ได้ rebuild native binary ของส่วนขยาย v0.2 เพราะพื้นที่ต่ำกว่า guard 5 GiB
-
-ก่อนติดตั้ง runtime มีพื้นที่ว่างประมาณ **18 GiB** หลัง first boot เคยเหลือไม่ถึง **0.5 GiB** จึงหยุดเครื่องจำลองและ build daemon ก่อน พื้นที่คืนเป็น 3.2–4.2 GiB แล้วบูต/เปิดเกมสำเร็จ เหลือประมาณ **3.7 GiB** ตัว launcher ยังมี guard หยุด native build เมื่อพื้นที่ต่ำกว่า 5 GiB
-
-- Xcode 26.3 ผ่าน first-launch check และอ่าน target/scheme LittleFarm ได้แล้ว
-- iOS Simulator runtime 26.3.1 arm64 ติดตั้งสำเร็จแล้ว การดาวน์โหลดรอบนี้ไม่มี networking error; ใช้ iPhone 17 ที่สร้างไว้ต่อได้ ไม่ต้องดาวน์โหลดซ้ำ
-- ยังไม่พบ Android SDK ในตำแหน่งมาตรฐาน
-- Android Studio ที่ตรวจพบเป็น 2024.3: ต้องอัปเดต IDE หากจะใช้ AGP 9.1 เช่น Panda 2 (2025.3.2) หรือใหม่กว่า แต่ JBR 21 ที่มากับตัวเดิมยังใช้รัน Gradle CLI ได้
-
-ดูหลักฐานและขอบเขตการตรวจใน [SETUP-STATUS.md](SETUP-STATUS.md)
-
-## เปิดโปรเจกต์
-
-**iOS:** เปิด `iosApp/iosApp.xcodeproj` ใน Xcode เลือก scheme **LittleFarm**
-
-**Kotlin/Android:** เปิดโฟลเดอร์ `kmp` นี้ใน Android Studio รุ่นที่รองรับ และติดตั้ง Kotlin Multiplatform plugin หากต้องการเครื่องมือ KMP ของ IDE
-
-Android SDK ที่ต้องใช้: Android API 36, Build-Tools 36.0.0, Platform-Tools ติดตั้งผ่าน SDK Manager แล้วสร้าง `local.properties` ตามตัวอย่างด้วย SDK path จริง ไม่ commit ไฟล์นี้
-
-ไม่ต้องมี Android SDK เพื่อ build iOS: script ของ Xcode เลือก profile `littlefarm.iosOnly=true` อัตโนมัติ
-
-## คำสั่ง
+กรณี clone ใหม่:
 
 ```sh
-cd /Users/ize/Desktop/old_system/after-hours-garden/kmp
+git clone https://github.com/ize-050/Game-after-working-garden.git
+cd Game-after-working-garden/kmp
+```
 
-# Compile shared UI + ทดสอบกติกาเกม/เซฟ โดยไม่ต้องมี mobile SDK
-./scripts/gradle.sh -p verification jvmTest
+กรณีมีโปรเจกต์อยู่แล้ว ให้เข้าโฟลเดอร์เกมเดิมแล้ว `cd kmp` ไม่ต้อง clone ซ้ำ **คำสั่งในส่วนถัดไปทั้งหมดรันจากโฟลเดอร์ `kmp`** เว้นแต่จะระบุเป็นอย่างอื่น
 
-# iPhone Simulator framework บน Apple Silicon
-./scripts/gradle.sh -Plittlefarm.iosOnly=true :composeApp:linkDebugFrameworkIosSimulatorArm64
+ตรวจเครื่องก่อนเริ่ม:
 
-# iOS app: คำสั่งที่ตรวจผ่านบนเครื่องนี้ แม้ยังไม่มี Simulator runtime
-# ใช้ SDK ที่ติดตั้งอยู่; ไม่ต้องเซ็นแอป แต่ยังต้องมีพื้นที่พอสำหรับ build
+```sh
+pwd
+df -h .
+./scripts/gradle.sh --version
+```
+
+คำสั่ง Gradle ครั้งแรกอาจดาวน์โหลด wrapper ก่อน แล้วแสดง Gradle/JVM ที่ใช้ launcher เก็บ cache ใน `.tooling/gradle-home` และ `.tooling/konan` ภายในโปรเจกต์
+
+## Mac desktop preview
+
+เปิดเล่น UI และกติกาเดียวกับมือถือในหน้าต่างบน Mac:
+
+```sh
+./scripts/gradle.sh -p verification playDesktop --no-daemon --console=plain
+```
+
+เมื่อ compile เสร็จหน้าต่าง Little Farm จะเปิด กดเล่นต่อเพื่อเข้าสวน ปิดหน้าต่างเพื่อจบโปรแกรม เปิดครั้งต่อไปจะเล่นต่อจากเซฟใน `.tooling/desktop-preview/` ถ้าต้องหยุด process ใช้ Ctrl+C ใน Terminal
+
+นี่เป็น shared Compose/Desktop สำหรับทดสอบ **ไม่ใช่ iOS Simulator หรือแอปที่แจกติดตั้ง** เซฟและตัวเลือกเสียงแยกจากมือถือ ใช้ Guest เท่านั้น Google/Apple Login และแจ้งเตือน OS จริงไม่ทำงานใน preview นี้
+
+## iOS Simulator
+
+### วิธีผ่าน Xcode
+
+1. เปิด Xcode ให้ติดตั้งส่วนประกอบเริ่มต้นและยอมรับข้อตกลงให้เรียบร้อย
+2. ติดตั้ง iOS Simulator runtime ผ่านส่วนจัดการ Components/Platforms ของ Xcode ถ้ามี runtime ที่ใช้ได้อยู่แล้ว ไม่ต้องดาวน์โหลดซ้ำ
+3. ตรวจว่า command-line tools ชี้ไป Xcode ที่ต้องการ:
+
+   ```sh
+   xcode-select -p
+   xcodebuild -version
+   ```
+
+   ถ้าชี้ไป `/Library/Developer/CommandLineTools` หรือ Xcode คนละชุด ให้เลือก Xcode ที่ถูกใน **Xcode → Settings → Locations → Command Line Tools**
+
+4. เปิดโปรเจกต์:
+
+   ```sh
+   open iosApp/iosApp.xcodeproj
+   ```
+
+5. เลือก scheme **LittleFarm** และ iPhone Simulator ที่ติดตั้งไว้ ไม่เลือก Generic iOS Device หรือ iPhone จริงในขั้นตอนนี้
+6. กด **Run (⌘R)** รอ build แล้วแอปจะเปิดใน Simulator ใช้ Guest ได้โดยไม่ตั้ง Firebase หรือ Signing Team สำหรับ Simulator
+
+Xcode มี build phase เรียก `scripts/gradle.sh :composeApp:embedAndSignAppleFrameworkForXcode` อยู่แล้ว ไม่ต้องสร้าง Shared framework ด้วยมือ และ launcher เลือก `littlefarm.iosOnly=true` อัตโนมัติ จึงไม่ต้องมี Android SDK เพื่อรัน iOS
+
+### วิธีผ่าน Terminal บน Apple Silicon
+
+แสดงเครื่องจำลองที่มีอยู่ เลือก **UDID** ของ iPhone ที่ต้องการจากผลลัพธ์:
+
+```sh
+xcrun simctl list devices available
+```
+
+แทนที่ `PASTE_DEVICE_UDID` ก่อนรัน และใช้ Terminal หน้าต่างเดิมสำหรับคำสั่งต่อไป:
+
+```sh
+FARM_SIMULATOR_ID="PASTE_DEVICE_UDID"
+open -a Simulator
+xcrun simctl bootstatus "$FARM_SIMULATOR_ID" -b
+```
+
+`bootstatus -b` จะ boot ถ้ายังไม่ได้เปิดและรอจนพร้อม จากนั้น build → install → launch ตามลำดับ โดย `&&` จะไม่ติดตั้ง binary เก่าถ้า build รอบนี้ล้มเหลว:
+
+```sh
 xcodebuild -project iosApp/iosApp.xcodeproj -target LittleFarm \
-  -configuration Debug -sdk iphonesimulator26.2 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+  -configuration Debug -sdk iphonesimulator ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
   CONFIGURATION_BUILD_DIR="$PWD/.tooling/ios-build" \
-  CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build
-
-# Android หลังติดตั้ง SDK
-./scripts/gradle.sh :androidApp:assembleDebug
+  CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build && \
+xcrun simctl install "$FARM_SIMULATOR_ID" "$PWD/.tooling/ios-build/LittleFarm.app" && \
+xcrun simctl launch "$FARM_SIMULATOR_ID" com.littlefarm.game
 ```
 
-APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`
+คำสั่งนี้ใช้ SDK ของ Xcode ที่เลือกอยู่ ไม่ล็อกเลข SDK ผลลัพธ์คือ `.tooling/ios-build/LittleFarm.app` ส่วนการกด Run ผ่าน Xcode ปกติใช้โฟลเดอร์ DerivedData ของ Xcode
 
-iOS Simulator app: `.tooling/ios-build/LittleFarm.app` — เป็น simulator build ไม่ใช่ไฟล์สำหรับติดตั้งลง iPhone จริง เมื่อมี runtime แล้วเปิด Xcode project เลือก scheme `LittleFarm` และ iPhone Simulator จากนั้นกด Run
+ไฟล์นี้เป็น **Simulator app** ไม่ใช่ไฟล์สำหรับลง iPhone จริง ถ้าจะรันบน iPhone ให้เลือก device ใน Xcode ตั้ง Bundle ID/Signing Team ของตนเอง และเตรียมสิทธิ์/การตั้งค่า developer ของอุปกรณ์ก่อน ไม่ใช้คำสั่ง `CODE_SIGNING_ALLOWED=NO` ของ Simulator ไปติดตั้งบนเครื่องจริง
 
-`scripts/gradle.sh` ใช้ Java 21 ของ Android Studio พร้อม cache เฉพาะโปรเจกต์ใน `.tooling/` ไม่แก้ shell profile หรือ Java global ถ้า IDE อยู่ที่อื่นกำหนด `LITTLEFARM_JAVA_HOME` ไป JDK 21 ของคุณ ใช้ `./gradlew` โดยตรงได้เมื่อกำหนด Gradle JDK ใน IDE แล้ว
+ถ้าต้องการตรวจเฉพาะ shared iOS framework ไม่ใช่ทั้งแอป:
 
-Script จะหยุดก่อนดาวน์โหลด native toolchain หากพื้นที่ต่ำกว่า 5 GiB เพื่อไม่ให้ดิสก์เต็มซ้ำ ค่านี้เป็น safety guard ของโปรเจกต์ ไม่ใช่ขั้นต่ำของ Kotlin; `LITTLEFARM_ALLOW_LOW_DISK=1` ข้าม guard ได้เฉพาะเมื่อคุณทราบว่าพื้นที่พอสำหรับงานนั้นแล้ว
+```sh
+./scripts/gradle.sh -Plittlefarm.iosOnly=true :composeApp:linkDebugFrameworkIosSimulatorArm64 --no-daemon --console=plain
+```
 
-## โครงสร้าง
+## Android
+
+1. เปิดโฟลเดอร์ `kmp` ใน Android Studio ที่รองรับ AGP 9.1 และเลือก Gradle JDK 21
+2. ใน SDK Manager ติดตั้ง **Android SDK Platform API 36**, SDK Build-Tools ที่ AGP ต้องการ, Platform-Tools; เพิ่ม Android Emulator และ system image หากจะใช้เครื่องจำลอง
+3. ถ้ายังไม่มี `local.properties` ให้สร้าง SDK path local (ถ้ามีอยู่แล้วให้เปิดแก้เท่านั้น):
+
+   ```sh
+   test -f local.properties || cp local.properties.example local.properties
+   open -e local.properties
+   ```
+
+   เปลี่ยน `sdk.dir` เป็น path จริงที่ SDK Manager แสดง เช่น `/Users/YOUR_USERNAME/Library/Android/sdk` ต้องแทน `YOUR_USERNAME` ไฟล์นี้ถูก Git ignore อยู่ ไม่ commit
+
+4. เปิด emulator จาก Device Manager หรือเชื่อมมือถือที่เปิด USB debugging และยืนยันการเชื่อมต่อบนมือถือ
+5. เลือก run configuration/module **androidApp** และอุปกรณ์ แล้วกด Run
+
+หรือสร้าง APK ผ่าน Terminal:
+
+```sh
+./scripts/gradle.sh :androidApp:assembleDebug --no-daemon --console=plain
+```
+
+APK อยู่ที่ `androidApp/build/outputs/apk/debug/androidApp-debug.apk` ถ้ามี emulator/มือถือที่เชื่อมต่อแล้วให้ใช้:
+
+```sh
+./scripts/gradle.sh :androidApp:installDebug --no-daemon --console=plain
+```
+
+คำสั่ง `installDebug` ติดตั้งแอป แต่ไม่ได้เปิดเกมให้เสมอไป ให้แตะไอคอนเกมบนอุปกรณ์ หรือกด Run จาก Android Studio เพื่อเปิดด้วย
+
+build ค่าเริ่มต้นเป็น Guest/offline ไม่มี Firebase config ก็ build ได้ ไม่ต้องใช้ `-Plittlefarm.firebase=true` จนกว่าจะตั้งค่าบริการจริงครบ หาก Gradle แจ้ง `SDK location not found` ให้กลับไปตรวจ `local.properties` ไม่ต้องเพิ่ม Firebase เพื่อแก้ข้อผิดพลาดนี้
+
+## ทดสอบและดูภาพ UI
+
+ใช้ source และ resources ชุดเดียวกับแอป โดยไม่ต้องมี iOS/Android SDK:
+
+```sh
+./scripts/gradle.sh -p verification jvmTest smokeUi renderScreens --no-daemon --console=plain
+```
+
+- `jvmTest`: กติกาเกม เซฟ การย้ายข้อมูล บัญชีจำลอง ซื้อขาย เสียง และ logic แจ้งเตือน
+- `smokeUi`: กดใช้งานผ่าน Compose semantics และตรวจผลในเซฟ ไม่ใช่การกดบนมือถือจริง
+- `renderScreens`: สร้างภาพจริงจาก Compose หลายขนาดไว้ใน `verification/build/screenshots/`
+
+เปิดรายงานและแกลเลอรีหลังคำสั่งสำเร็จ:
+
+```sh
+open verification/build/reports/tests/jvmTest/index.html
+open preview/index.html
+```
+
+แกลเลอรีเป็นภาพนิ่ง **กดเล่นเกมไม่ได้** และภาพ generated ไม่อยู่ใน Git ถ้า clone ใหม่ต้อง `renderScreens` ก่อน ไม่ควรเปิด HTTP server ครอบโฟลเดอร์ KMP ทั้งหมด เพราะอาจเปิดให้เข้าถึง source/config ที่ไม่ใช่รูปภาพ
+
+เมื่อเคยดาวน์โหลด dependencies ของงานนั้นครบแล้ว หากต้องการไม่ใช้อินเทอร์เน็ตให้เติม `--offline` เช่น:
+
+```sh
+./scripts/gradle.sh -p verification jvmTest --offline --no-daemon --console=plain
+```
+
+## เซฟ บัญชี และแจ้งเตือน
+
+- Desktop preview เก็บเซฟใน `.tooling/desktop-preview/`; iOS ใช้ UserDefaults; Android ใช้ SharedPreferences เซฟของแต่ละแพลตฟอร์มไม่ใช่ไฟล์เดียวกัน
+- สวน Guest และสวนแต่ละบัญชีแยกกันในเครื่อง เซฟ v1 ย้ายเป็น v2 ได้ แต่ไม่ควรนำเซฟ v2 กลับไปเปิดด้วยโค้ดเก่า
+- ยังไม่ต้องเปิด Firebase เพื่อเล่นเกม ปุ่ม Google/Apple จะไม่ล็อกอินจริงจนกว่าจะตั้ง SDK/config ตาม [FIREBASE-SETUP.md](FIREBASE-SETUP.md)
+- แจ้งเตือนเก็บเกี่ยวปิดไว้ก่อน เปิดได้จากตั้งค่าในแอปมือถือและอนุญาตสิทธิ์ OS เป็น local notification ไม่ต้องมี server และ Android อาจส่งช้าจากการประหยัดพลังงาน
+- อย่า commit `.env`, `GoogleService-Info.plist`, `google-services.json`, service-account หรือ signing keys
+- อย่า erase Simulator, ถอนแอป หรือกดเริ่มสวนใหม่เพื่อแก้ build โดยไม่ตั้งใจ เพราะอาจทำให้เซฟหาย
+
+## ปัญหาที่พบบ่อย
+
+| อาการ | วิธีตรวจ/แก้ |
+| --- | --- |
+| `Set LITTLEFARM_JAVA_HOME to a JDK 21 directory` | ติดตั้ง JDK 21/Android Studio หรือกำหนด JDK path จริง ตรวจ `bin/java -version` |
+| Xcode หา Java ไม่เจอ แต่ Terminal รันได้ | Xcode จาก Dock อาจไม่ได้รับ `export`; ใช้ CLI จาก Terminal ที่ตั้งค่าแล้ว หรือใช้ JBR ของ Android Studio ในตำแหน่งมาตรฐาน |
+| `Native build paused: less than 5 GiB free` | คืนพื้นที่ก่อน ตรวจ `df -h .`; อย่าฝืนปิด guard หรือดาวน์โหลด runtime เพิ่ม |
+| หา dependency ไม่เจอใน offline mode | เอา `--offline` ออกและต่ออินเทอร์เน็ตเพื่อดาวน์โหลดครั้งแรก |
+| `SDK location not found` ใน Android | ตรวจ `local.properties`, SDK path และการติดตั้ง API 36 |
+| ไม่มี iPhone ให้เลือก | ตรวจ runtime ใน Xcode และเลือก Simulator บน Apple Silicon; โปรเจกต์นี้ยังไม่มี `iosX64` |
+| Simulator เปิดแล้วแต่ยังเป็นเกมรุ่นเก่า | ต้อง build และติดตั้ง binary ใหม่ให้สำเร็จ ไม่ใช่แค่ `simctl launch` แอปเดิม |
+| preview รูปไม่ขึ้น | รัน `renderScreens` ก่อน รูปใน `build/` ไม่รวมใน repository |
+| เปิด preview แล้วกดเล่นไม่ได้ | เป็นภาพนิ่ง ให้ใช้ `playDesktop` หรือ Run แอปมือถือ |
+| Login หรือแจ้งเตือนไม่ทำงานบน desktop | preview ใช้ Guest และไม่มี OS notification adapter จริง ไม่ใช่ข้อผิดพลาดของเซฟ |
+
+## ขอบเขตการตรวจล่าสุด
+
+22 กันยายน 2026: shared v0.2 ผ่าน **104 tests**, ชุดกด UI และภาพ **50 ภาพ** รุ่นก่อน v0.2 เคย build/install/เปิดบน iPhone 17 Simulator iOS 26.3.1 ด้วย Xcode 26.3 แล้ว แต่ **native v0.2 ยังไม่ได้ rebuild** เพราะพื้นที่ต่ำกว่า guard และ Android SDK ยังไม่พร้อม คำสั่ง native ในคู่มือนี้จึงไม่ใช่การอ้างว่าทดสอบ v0.2 บนมือถือครบแล้ว
+
+ยังต้องตรวจ native compile และการส่งแจ้งเตือนจริงก่อนเผยแพร่ มี linker warning เดิมเกี่ยวกับ ICU ที่สร้างสำหรับ Simulator 18.5 เทียบกับ deployment 15.0 จึงยังไม่รับรอง iOS รุ่นเก่า อ่าน [สถานะเครื่อง](SETUP-STATUS.md) และ [ผลตรวจ v0.2 / checklist](PROGRESSION-UPDATE.md)
+
+## โครงสร้างและเอกสาร
 
 ```text
-composeApp/src/commonMain/   UI, game engine, save codec, storage interface
-composeApp/src/androidMain/  SharedPreferences + clock
-composeApp/src/iosMain/      UserDefaults + clock + ComposeUIViewController
-composeApp/src/commonTest/  GameEngineTest + SaveCodecTest
-composeApp/src/commonMain/composeResources/ ภาพฉาก ฟอนต์ และใบอนุญาต
-androidApp/                 Android entry point
-iosApp/                     SwiftUI host + Xcode project
-verification/               tests, screenshot renderer และ desktop QA harness ใช้ source เดียวกัน
-preview/                    แกลเลอรีภาพจาก Compose ไม่ใช่เกมในเบราว์เซอร์
-backend/                    Firestore rules + emulator tests ที่เตรียมไว้ ยังไม่ deploy
-gradle/libs.versions.toml    เวอร์ชัน dependencies
+composeApp/src/commonMain/   UI, game engine, save codec, notifications controller
+composeApp/src/commonTest/  unit tests ของ shared game
+composeApp/src/iosMain/      iOS host bridge, UserDefaults, clock, audio
+composeApp/src/androidMain/ SharedPreferences, clock, audio
+androidApp/                 Android entry point และ notification adapter
+iosApp/                     SwiftUI host, Xcode project, notification adapter
+verification/               JVM tests, UI smoke, renderer, desktop preview
+preview/                    HTML gallery ของภาพที่สร้างจาก Compose
+backend/                    Firestore rules/tests ที่เตรียมไว้ ยังไม่ deploy
+scripts/gradle.sh            launcher ใช้ JDK และ cache เฉพาะโปรเจกต์
 ```
 
-## Versions / signing
+- [README หลัก / HTML prototype รุ่นเก่า](../README.md)
+- [PRD](../PRD.md) · [รายละเอียด v0.2](PROGRESSION-UPDATE.md)
+- [ดีไซน์และข้อแตกต่างจาก Stitch](DESIGN-PARITY.md) · [Google Stitch](https://stitch.withgoogle.com/projects/11043770835758050762)
+- [Firebase](FIREBASE-SETUP.md) · [iOS Firebase](iosApp/FIREBASE-SETUP.md) · [Android Firebase](androidApp/FIREBASE-SETUP.md)
 
-Kotlin และ Compose compiler **2.4.10**, Compose Multiplatform **1.11.1**, AGP **9.1.0**, Gradle **9.3.1**, Java **21**; Android minSdk **24**, compileSdk/targetSdk **36**; iOS deployment **15.0**
-
-อ้างอิง: [KMP compatibility](https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html), [Compose compatibility](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html), [Android-KMP plugin](https://developer.android.com/kotlin/multiplatform/plugin), [IDE/AGP compatibility](https://developer.android.com/studio/releases#android_gradle_plugin_and_android_studio_compatibility)
-
-Kotlin 2.4.10 อ้างอิง Xcode 26.4 ใน upstream ส่วนเครื่องนี้เป็น 26.3: ตรวจ simulator framework และ app build ผ่านแล้ว แต่ยังไม่ใช่การรับรองทุก target หรือ runtime เพิ่ม `CADisableMinimumFrameDurationOnPhone=true` ตามข้อกำหนดของ Compose iOS แล้ว
-
-Linker มี warning ว่า object `libicu.icudtl_dat.o` ใน dependency ถูก build สำหรับ iOS Simulator 18.5 ขณะที่แอปตั้ง deployment target 15.0 จึงยังไม่อ้างว่าทำงานบน iOS รุ่นเก่าได้จนกว่าจะตรวจ runtime จริง ไม่ได้ซ่อน warning หรือเปลี่ยน minimum OS เพื่อให้ดูเหมือนผ่าน
-
-Bundle ID `com.littlefarm.game` เป็นค่าเริ่มต้น ให้เปลี่ยนเป็น ID ของคุณและเลือก Apple Team ใน Signing & Capabilities ก่อนลง iPhone จริง ไม่มี Team ID, certificate หรือคีย์ส่วนตัวใน source ยังไม่ได้ตั้งระบบเผยแพร่ผ่าน Store/TestFlight
-
-แบบภาพ: [Google Stitch](https://stitch.withgoogle.com/projects/11043770835758050762) · [PRD](../PRD.md)
+ค่าเริ่มต้น Bundle ID คือ `com.littlefarm.game` ต้องเลือก ID และ Signing Team ของตนเองก่อนแจกแอปจริง ยังไม่ได้ตั้งการเผยแพร่ผ่าน App Store หรือ TestFlight
