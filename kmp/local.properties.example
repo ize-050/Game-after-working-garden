@@ -1,0 +1,3 @@
+# Copy to local.properties after installing the Android SDK.
+# Replace YOUR_USERNAME and use the actual path from Android Studio SDK Manager.
+sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk

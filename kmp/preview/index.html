@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Farm · Native UI Preview</title>
+<style>
+@font-face{font-family:Thai;src:url('../composeApp/src/commonMain/composeResources/font/noto_sans_thai_regular.ttf')}*{box-sizing:border-box}body{margin:0;background:#f6f1e5;color:#324a37;font:15px Thai,system-ui,sans-serif}header{padding:24px 28px 16px;max-width:1360px;margin:auto}h1{margin:0;font-size:27px}p{color:#80745b;margin:8px 0}nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}button,a{font:inherit}button{border:1px solid #c9cfb6;border-radius:30px;background:#fffbed;padding:9px 18px;color:#3d6b45;cursor:pointer}button[aria-pressed=true]{background:#3d6b45;color:white}.grid{max-width:1360px;margin:auto;padding:12px 28px 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:28px}.screen{margin:0;max-width:393px}figcaption{padding:0 0 9px;font-size:14px}img{width:100%;display:block;border-radius:24px;border:6px solid #fffdf5;box-shadow:0 8px 26px #54462719}a{color:inherit;text-decoration:none}.note{font-size:12px}.screen a:focus-visible,button:focus-visible{outline:3px solid #dc8a62;outline-offset:4px}@media(max-width:500px){header{padding:20px}.grid{padding:10px 20px;grid-template-columns:1fr}.screen{margin:auto}}
+</style>
+<header><h1>สวนหลังเลิกงาน · Little Farm</h1><p>เก็บดีไซน์ตาม Stitch · 22 กันยายน 2026 · ภาพจากโค้ด Compose จริง</p><p class="note">เป็นภาพตรวจ UI บน JVM ไม่ใช่เกมในเบราว์เซอร์ และยังไม่ใช่ผลทดสอบบน iPhone · แตะภาพเพื่อดูขนาดเต็ม</p><nav aria-label="ขนาดหน้าจอ"><button data-size="393x852" aria-pressed="true">มือถือ 393 × 852</button><button data-size="320x640" aria-pressed="false">จอเล็ก 320 × 640</button></nav></header>
+<main class="grid" id="screens"></main>
+<script>
+const screens=[['01-welcome','หน้าเริ่มเกม'],['02-farm','แปลงผักของฉัน'],['03-seeds','เลือกเมล็ดพันธุ์'],['04-growth','ดูแลและรอเติบโต'],['05-harvest','เก็บเกี่ยวสำเร็จ'],['06-bag','กระเป๋าชาวสวน'],['07-shop','ร้านเมล็ดพันธุ์'],['08-market','ตลาดผักสด'],['09-orders','งานเพื่อนบ้าน'],['10-upgrades','ขยายสวนและอัปเกรด'],['11-village','หมู่บ้าน'],['12-settings','ตั้งค่าและบันทึก'],['13-account','บัญชีและสำรองสวน · ยังไม่เชื่อม Firebase']];
+function render(size){document.getElementById('screens').replaceChildren(...screens.map(([id,title])=>{const figure=document.createElement('figure');figure.className='screen';const caption=document.createElement('figcaption');caption.textContent=id.slice(0,2)+' / '+title;const a=document.createElement('a');a.href='../verification/build/screenshots/'+id+'-'+size+'.png';const img=document.createElement('img');img.src=a.href;img.alt=title;img.loading='lazy';img.width=Number(size.split('x')[0]);img.height=Number(size.split('x')[1]);a.append(img);figure.append(caption,a);return figure}));document.querySelectorAll('button[data-size]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.size===size)))}
+document.querySelectorAll('button[data-size]').forEach(b=>b.addEventListener('click',()=>render(b.dataset.size)));render('393x852');
+</script>
+</html>

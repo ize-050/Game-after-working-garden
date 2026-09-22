@@ -1,0 +1,34 @@
+# Local environment, IDE state and generated output
+.DS_Store
+.idea/
+.gradle/
+.kotlin/
+.tooling/
+**/build/
+**/node_modules/
+**/xcuserdata/
+*.xcuserstate
+local.properties
+.firebase/
+*-debug.log
+
+# Credentials and signing material stay on the developer's machine.
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.mobileprovision
+credentials.json
+service-account*.json
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+GoogleService-Info.plist
+google-services.json
+firebase.local.properties

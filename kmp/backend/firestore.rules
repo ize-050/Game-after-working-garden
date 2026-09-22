@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function deleting(uid) {
+      return exists(/databases/$(database)/documents/accountDeletions/$(uid));
+    }
+    function deletingAfter(uid) {
+      return existsAfter(/databases/$(database)/documents/accountDeletions/$(uid));
+    }
+    function validSave() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['payload', 'revision', 'updatedAt'])
+        && data.keys().hasOnly(['payload', 'revision', 'updatedAt'])
+        && data.payload is string && data.payload.size() > 0 && data.payload.toUtf8().size() <= 200000
+        && data.revision is int && data.revision > 0 && data.revision <= 2000000000
+        && data.updatedAt == request.time;
+    }
+    match /players/{uid} {
+      allow get: if owner(uid) && !deleting(uid);
+      allow list: if false;
+      allow create: if owner(uid) && !deletingAfter(uid) && validSave()
+        && request.resource.data.revision == 1;
+      allow update: if owner(uid) && !deletingAfter(uid) && validSave()
+        && request.resource.data.revision == resource.data.revision + 1;
+      // The deletion transaction creates a tombstone and removes the farm together.
+      allow delete: if owner(uid) && deletingAfter(uid);
+    }
+    match /accountDeletions/{uid} {
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasAll(['requestedAt'])
+        && request.resource.data.keys().hasOnly(['requestedAt'])
+        && request.resource.data.requestedAt == request.time;
+      allow update, delete: if false;
+    }
+    // Everything else, including future premium balances, is denied by default.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

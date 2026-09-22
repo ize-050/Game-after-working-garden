@@ -1,0 +1,20 @@
+.gradle/
+.kotlin/
+.tooling/
+**/build/
+local.properties
+.idea/
+.DS_Store
+**/xcuserdata/
+*.xcuserstate
+*.keystore
+*.jks
+
+# Real Firebase mobile configuration is supplied locally, never invented by the app.
+GoogleService-Info.plist
+google-services.json
+firebase.local.properties
+**/node_modules/
+**/firebase-debug.log
+**/firestore-debug.log
+**/.firebase/
